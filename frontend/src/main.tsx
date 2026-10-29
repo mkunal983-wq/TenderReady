@@ -8,6 +8,7 @@ import { Landing } from './components/Landing';
 import { parseWorkspaceRoute, useWorkspaceLocation, workspaceHref } from './workspaceRoutes';
 import { DocumentWorkflow } from './DocumentWorkflow';
 import { createSampleWorkflow, SampleWorkflowError, SAMPLE_SUPPLIER } from './sampleWorkflow';
+import './glass-theme.css';
 
 
 type Workspace = { id: string; title: string; supplier_name: string; revision: number };
