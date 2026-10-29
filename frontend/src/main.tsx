@@ -32,7 +32,11 @@ function App() {
     });
     if (!response.ok) {
       const body=await response.json().catch(()=>null);
-      throw new Error(response.status === 401 ? 'Enter the application access token and reconnect.' : body?.error?.message || `Request failed (${response.status}).`);
+      throw new Error(
+        response.status === 401
+          ? 'Enter the application access token and reconnect.'
+          : body?.error?.message || (response.status === 500 ? 'Backend server is not running on port 8000.' : `Request failed (${response.status}).`)
+      );
     }
     return response.json();
   }, [token]);
