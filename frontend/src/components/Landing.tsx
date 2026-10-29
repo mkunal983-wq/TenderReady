@@ -1,52 +1,272 @@
-import { IconArrowRight, IconBolt, IconShieldCheck, IconRefresh, IconFileText, IconBuilding, IconSchool, IconBuildingBank, IconClipboardCheck, IconChevronDown, IconCheck, IconFiles, IconListCheck } from '@tabler/icons-react';
-import { FlipWords } from './ui/flip-words';
+import {
+  IconArrowRight,
+  IconBolt,
+  IconShieldCheck,
+  IconRefresh,
+  IconFileText,
+  IconBuilding,
+  IconSchool,
+  IconBuildingBank,
+  IconFiles,
+  IconListCheck,
+  IconCheck,
+} from '@tabler/icons-react';
 import './landing.css';
 
-const outcomes = ['submission-ready', 'source-linked', 'review-ready'];
-const features = [
-  { Icon: IconBolt, label: 'AI requirement', detail: 'extraction', color: 'violet' },
-  { Icon: IconShieldCheck, label: 'Evidence', detail: 'verification', color: 'green' },
-  { Icon: IconRefresh, label: 'Amendment', detail: 'impact tracking', color: 'orange' },
-  { Icon: IconFileText, label: 'Exportable', detail: 'evidence pack', color: 'blue' },
+const capabilities = [
+  {
+    Icon: IconBolt,
+    label: 'AI Requirement Extraction',
+    detail: 'Clause-by-clause indexing with page citations',
+  },
+  {
+    Icon: IconShieldCheck,
+    label: 'Evidence Verification',
+    detail: 'Model, entity, dates & threshold checks',
+  },
+  {
+    Icon: IconRefresh,
+    label: 'Amendment Tracking',
+    detail: 'Instant delta analysis on tender addenda',
+  },
+  {
+    Icon: IconFileText,
+    label: 'Exportable Evidence Pack',
+    detail: 'Source-linked compliance dossier for submission',
+  },
+];
+
+const audiences = [
+  {
+    Icon: IconBuilding,
+    title: 'IT Hardware Suppliers',
+    desc: 'Verify OEM specifications, part numbers, and warranty thresholds against tender mandates before committing.',
+  },
+  {
+    Icon: IconSchool,
+    title: 'Education & Research',
+    desc: 'Comply with institutional procurement guidelines, scoring criteria, and strict delivery commitments.',
+  },
+  {
+    Icon: IconBuildingBank,
+    title: 'Institutional Procurement',
+    desc: 'Ensure rigorous auditability with complete provenance tracking and human sign-off on every clause.',
+  },
+];
+
+const steps = [
+  {
+    step: '01',
+    title: 'Ingest Tender Documents',
+    body: 'Upload the original tender PDF. The system extracts mandatory requirements, technical specs, and commercial clauses with exact page references.',
+  },
+  {
+    step: '02',
+    title: 'Verify Supplier Evidence',
+    body: 'Upload datasheets, certifications, and supplier proofs. The system validates entity names, specs, and dates—flagging ambiguities or conflicts.',
+  },
+  {
+    step: '03',
+    title: 'Track Addenda & Export',
+    body: 'When amendments arrive, automatically evaluate which requirements changed. Record human review decisions and export an immutable evidence pack.',
+  },
 ];
 
 export function Landing() {
-  return <div className="tr-landing">
-    <header className="tr-nav">
-      <a className="tr-logo" href="/" aria-label="TenderReady home"><span className="tr-mark">T</span><span><strong>TenderReady</strong><small>Procurement Intelligence</small></span></a>
-      <nav aria-label="Main navigation"><a href="#product-preview">Product</a><a href="#how-it-works">Solution <IconChevronDown size={13}/></a><a href="#for-suppliers">For Suppliers <IconChevronDown size={13}/></a><a href="#how-it-works">How it works</a></nav>
-      <a className="tr-button tr-primary tr-nav-cta" href="#workspace-start">Get started <IconArrowRight size={17}/></a>
-    </header>
-    <section className="tr-hero" aria-labelledby="tr-headline">
-      <div className="tr-hero-copy">
-        <div className="tr-eyebrow">AI-POWERED PROCUREMENT ASSISTANT</div>
-        <h1 id="tr-headline"><span className="sr-only">From complex tenders to submission-ready, source-linked evidence.</span><span aria-hidden="true">From complex<br/>tenders to<br/><span className="tr-flip"><FlipWords words={outcomes} className="tr-gradient-word px-0"/></span><br/>evidence.</span></h1>
-        <p>TenderReady helps IT suppliers prepare, verify, and manage tender documentation with AI — so every requirement has the right evidence, and every change is accounted for.</p>
-        <div className="tr-actions"><a className="tr-button tr-primary" href="#workspace-start">Start your workspace <IconArrowRight size={19}/></a><a className="tr-button tr-secondary" href="#how-it-works"><IconListCheck size={19}/> See how it works</a></div>
-        <div className="tr-features">{features.map(({Icon,label,detail,color}) => <div key={label}><span className={`tr-feature-icon ${color}`}><Icon size={21}/></span><span>{label}<br/>{detail}</span></div>)}</div>
-      </div>
-      <div className="tr-visual" id="product-preview" aria-label="TenderReady product preview">
-        <div className="tr-ribbon tr-ribbon-one" aria-hidden="true"/><div className="tr-ribbon tr-ribbon-two" aria-hidden="true"/>
-        <div className="tr-doc-chip tr-original"><span className="tr-file-icon pink"><IconFileText size={26}/></span><span>Tender PDF<small>Original document</small></span></div>
-        <div className="tr-doc-chip tr-amendment"><span className="tr-file-icon blue"><IconFiles size={26}/></span><span>Amendment<small>Version history</small></span></div>
-        <div className="tr-extraction"><span className="tr-ring"/><span>Source-linked requirements<span className="tr-skeleton"/><span className="tr-skeleton short"/></span></div>
-        <figure className="tr-dashboard">
-          <div className="tr-dashboard-bar"><span className="tr-mini-mark">T</span><b>TenderReady</b><span className="tr-preview-badge">SYNTHETIC AUDIT EXAMPLE</span></div>
-          <img src="/tenderready-dashboard.png" width="1113" height="853" alt="Actual TenderReady evidence readiness interface, showing two requirements that need human review." fetchPriority="high"/>
-          <figcaption>Actual interface · Example data · Human review required</figcaption>
-        </figure>
-        <div className="tr-float-card tr-evidence"><span className="tr-file-icon green"><IconShieldCheck size={27}/></span><div><strong>Evidence verification</strong><small>Model, entity, dates & thresholds</small><div className="tr-check-note"><IconCheck size={13}/> Trace every finding to its source</div></div></div>
-        <a href="#how-it-works" className="tr-float-card tr-impact"><span className="tr-file-icon orange"><IconRefresh size={26}/></span><div><strong>Amendment impact</strong><small>Reassess affected requirements</small><span className="tr-mini-link">Explore the workflow <IconArrowRight size={13}/></span></div></a>
-      </div>
-    </section>
-    <section className="tr-proof" id="for-suppliers" aria-label="Who TenderReady is for">
-      <div className="tr-audiences"><strong>Built for procurement teams</strong><div>{[{Icon:IconBuilding,label:<>IT Hardware<br/>Suppliers</>},{Icon:IconSchool,label:<>Schools &<br/>Universities</>},{Icon:IconBuildingBank,label:<>Institutional<br/>Procurement</>}].map(({Icon,label},i)=><span className="tr-audience" key={i}><Icon size={25}/><span>{label}</span></span>)}</div></div>
-      <div className="tr-principles"><div><b>Source-linked</b><span>evidence & findings</span></div><div><b>Change-aware</b><span>requirement review</span></div><div><b>Human-led</b><span>approval decisions</span></div></div>
-    </section>
-    <section className="tr-how" id="how-it-works">
-      <span className="tr-eyebrow">HOW IT WORKS</span><h2>From tender to <span>traceable evidence</span></h2><p>A structured workflow to help you stay compliant and submit with confidence.</p>
-      <div className="tr-steps">{[{Icon:IconFileText,title:'Bring your tender',body:'Create a workspace and upload the tender PDF. Review extracted clauses with exact page references.'},{Icon:IconShieldCheck,title:'Check the evidence',body:'Upload supplier documents. Inspect identity, dates and thresholds, then resolve discrepancies.'},{Icon:IconClipboardCheck,title:'Review every change',body:'Upload amendments, reassess affected findings, approve your decisions and export the evidence pack.'}].map(({Icon,title,body},i)=><article key={title}><div><Icon size={23}/><span>0{i+1}</span></div><h3>{title}</h3><p>{body}</p></article>)}</div>
-      <p className="tr-disclaimer">Evidence review supports your decisions. It does not guarantee eligibility, document authenticity, or contract award.</p>
-    </section>
-  </div>;
+  return (
+    <div className="tr-landing">
+      {/* Top Navigation */}
+      <header className="tr-nav">
+        <a className="tr-logo" href="/" aria-label="TenderReady home">
+          <span className="tr-mark">T</span>
+          <span>
+            <strong>TenderReady</strong>
+            <small>Procurement Intelligence</small>
+          </span>
+        </a>
+        <nav aria-label="Main navigation">
+          <a href="#product-preview">Product</a>
+          <a href="#for-suppliers">Target Sectors</a>
+          <a href="#how-it-works">How It Works</a>
+          <a href="#workspace-start">Workspaces</a>
+        </nav>
+        <a className="tr-button tr-primary tr-nav-cta" href="#workspace-start">
+          Open Workspaces <IconArrowRight size={15} />
+        </a>
+      </header>
+
+      {/* Hero Section */}
+      <section className="tr-hero" aria-labelledby="tr-headline">
+        <div className="tr-hero-copy">
+          <div className="tr-eyebrow">
+            <span className="tr-eyebrow-dot" aria-hidden="true" />
+            <span>AI-POWERED PROCUREMENT & COMPLIANCE</span>
+          </div>
+          <h1 id="tr-headline">
+            From complex tenders to{' '}
+            <span className="tr-brand-accent">submission-ready, source-linked</span> evidence.
+          </h1>
+          <p>
+            TenderReady equips IT suppliers and procurement teams to systematically extract requirements,
+            cross-verify evidence against original PDFs, and track tender amendments with complete auditability.
+          </p>
+          <div className="tr-actions">
+            <a className="tr-button tr-primary" href="#workspace-start">
+              Launch Workspace <IconArrowRight size={17} />
+            </a>
+            <a className="tr-button tr-secondary" href="#how-it-works">
+              <IconListCheck size={17} /> Review Methodology
+            </a>
+          </div>
+
+          <div className="tr-capabilities">
+            {capabilities.map(({ Icon, label, detail }) => (
+              <div key={label} className="tr-capability-item">
+                <span className="tr-capability-icon">
+                  <Icon size={18} />
+                </span>
+                <div>
+                  <strong>{label}</strong>
+                  <small>{detail}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Product Showcase */}
+        <div className="tr-visual" id="product-preview" aria-label="TenderReady product preview">
+          <figure className="tr-app-frame">
+            <div className="tr-window-chrome">
+              <div className="tr-window-controls" aria-hidden="true">
+                <span className="tr-dot red" />
+                <span className="tr-dot yellow" />
+                <span className="tr-dot green" />
+              </div>
+              <div className="tr-window-address">
+                <span className="tr-lock-icon" aria-hidden="true">🔒</span>
+                <span>tenderready.internal/workspaces/tender-audit/readiness</span>
+              </div>
+              <div className="tr-window-status">
+                <span className="tr-status-dot" />
+                <span>Nemotron-verified</span>
+              </div>
+            </div>
+            <div className="tr-screenshot-wrapper">
+              <img
+                src="/tenderready-dashboard.png"
+                width="1113"
+                height="853"
+                alt="Actual TenderReady evidence readiness interface, showing requirements review and audit findings."
+                fetchPriority="high"
+              />
+            </div>
+            <figcaption className="tr-caption">
+              <span>Production Interface</span>
+              <span className="tr-sep">·</span>
+              <span>Source-linked evidence verification</span>
+              <span className="tr-sep">·</span>
+              <span>Human sign-off workflow</span>
+            </figcaption>
+          </figure>
+
+          {/* Clean, docked annotation callouts */}
+          <div className="tr-annotation-bar">
+            <div className="tr-annotation-card">
+              <span className="tr-annotation-icon teal">
+                <IconFiles size={19} />
+              </span>
+              <div>
+                <strong>Tender & Amendment Ingestion</strong>
+                <small>Multi-revision PDF clause extraction</small>
+              </div>
+            </div>
+            <div className="tr-annotation-card">
+              <span className="tr-annotation-icon green">
+                <IconShieldCheck size={19} />
+              </span>
+              <div>
+                <strong>Evidence Cross-Validation</strong>
+                <small>Direct page citations for every finding</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Target Sectors & Trust Section */}
+      <section className="tr-proof" id="for-suppliers" aria-label="Who TenderReady is for">
+        <div className="tr-proof-heading">
+          <span className="tr-eyebrow-mini">ENTERPRISE-GRADE ASSURANCE</span>
+          <h2>Built for procurement teams with zero tolerance for non-compliance</h2>
+          <p>
+            When submitting multi-million dollar tenders, manual oversight can easily miss a single altered clause or missing certificate. TenderReady creates an immutable trail of proof.
+          </p>
+        </div>
+
+        <div className="tr-audiences-grid">
+          {audiences.map(({ Icon, title, desc }) => (
+            <div className="tr-audience-card" key={title}>
+              <div className="tr-audience-icon">
+                <Icon size={24} />
+              </div>
+              <h3>{title}</h3>
+              <p>{desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="tr-pillars-bar">
+          <div className="tr-pillar">
+            <span className="tr-pillar-check"><IconCheck size={16} /></span>
+            <div>
+              <strong>Source-Linked Findings</strong>
+              <span>Every extracted requirement traces to exact coordinates and original PDF pages.</span>
+            </div>
+          </div>
+          <div className="tr-pillar">
+            <span className="tr-pillar-check"><IconCheck size={16} /></span>
+            <div>
+              <strong>Change-Aware Engine</strong>
+              <span>Immediate impact analysis when addenda introduce modified, removed, or added terms.</span>
+            </div>
+          </div>
+          <div className="tr-pillar">
+            <span className="tr-pillar-check"><IconCheck size={16} /></span>
+            <div>
+              <strong>Human-Led Governance</strong>
+              <span>AI assists by pinpointing discrepancies; compliance teams maintain final review approval.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it Works Section */}
+      <section className="tr-how" id="how-it-works">
+        <div className="tr-how-heading">
+          <span className="tr-eyebrow-mini">STRUCTURED PROCESS</span>
+          <h2>From tender dossier to <span>submission-ready proof</span></h2>
+          <p>A rigorous three-step audit cycle designed to eliminate blind spots.</p>
+        </div>
+        <div className="tr-steps">
+          {steps.map(({ step, title, body }) => (
+            <article className="tr-step-card" key={title}>
+              <div className="tr-step-top">
+                <span className="tr-step-number">{step}</span>
+                <span className="tr-step-tag">Phase {step}</span>
+              </div>
+              <h3>{title}</h3>
+              <p>{body}</p>
+            </article>
+          ))}
+        </div>
+        <div className="tr-disclaimer-box">
+          <IconShieldCheck size={20} className="tr-disclaimer-icon" />
+          <p>
+            <strong>Evidence Review Notice:</strong> TenderReady aids internal decision-making by cross-referencing supplier documents against tender clauses. It does not replace internal legal counsel, guarantee statutory eligibility, or assure contract award.
+          </p>
+        </div>
+      </section>
+    </div>
+  );
 }
