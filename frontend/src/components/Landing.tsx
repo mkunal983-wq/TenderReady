@@ -130,211 +130,291 @@ export function Landing() {
         <div className="tr-demo-card" id="live-demo">
           <div className="tr-demo-header">
             <div className="tr-demo-title-group">
-              <span className="tr-live-pill">
-                <span className="tr-pulse-ring" /> LIVE DEMO
-              </span>
-              <strong>Interactive Tender Checker</strong>
-              <small>Click any example to see how the system cross-checks rules against proof</small>
+              <div className="tr-demo-badge-row">
+                <span className="tr-live-pill">
+                  <span className="tr-pulse-ring" /> LIVE EXAMPLE
+                </span>
+                <span className="tr-demo-hint">Instant check against your proof documents</span>
+              </div>
+              <h2 className="tr-demo-title">Interactive Tender Checker</h2>
+              <p className="tr-demo-subtitle">Select an example below to see how TenderReady checks if your products meet the buyer's rules:</p>
             </div>
 
-            {/* Test Case Picker */}
+            {/* Scenario Picker Tabs */}
             <div className="tr-demo-picker" role="tablist" aria-label="Sample test cases">
               <button
                 type="button"
                 className={`tr-picker-btn ${activeTest === 'ssd' ? 'active' : ''}`}
                 onClick={() => setActiveTest('ssd')}
               >
-                <IconCheck size={15} /> Test 1: Storage Match
+                <IconCheck size={16} />
+                <span>1. Storage Check</span>
+                <span className="tr-tab-status pass">Matches</span>
               </button>
               <button
                 type="button"
                 className={`tr-picker-btn ${activeTest === 'ram' ? 'active' : ''}`}
                 onClick={() => setActiveTest('ram')}
               >
-                <IconAlertTriangle size={15} /> Test 2: RAM Update Conflict
+                <IconAlertTriangle size={16} />
+                <span>2. Last-Minute Change</span>
+                <span className="tr-tab-status warn">Warning</span>
               </button>
               <button
                 type="button"
                 className={`tr-picker-btn ${activeTest === 'warranty' ? 'active' : ''}`}
                 onClick={() => setActiveTest('warranty')}
               >
-                <IconShieldCheck size={15} /> Test 3: Warranty Verification
+                <IconShieldCheck size={16} />
+                <span>3. Warranty & Repairs</span>
+                <span className="tr-tab-status pass">Matches</span>
               </button>
             </div>
           </div>
 
-          {/* Live Document Cross-Check Display */}
           <div className="tr-demo-body">
-            {/* Case 1: Storage SSD (Pass) */}
-            {activeTest === 'ssd' && (
-              <div className="tr-demo-view">
-                <div className="tr-docs-compare">
-                  <div className="tr-doc-col tender-col">
-                    <div className="tr-col-tag">
-                      <span className="tr-tag-label">TENDER REQUIREMENT</span>
-                      <span className="tr-tag-source">University_RFP.pdf · Page 14</span>
-                    </div>
-                    <blockquote className="tr-doc-quote">
-                      &ldquo;Clause 4.2: Storage must be a minimum of 512 GB PCIe 4.0 NVMe SSD with hardware encryption support.&rdquo;
-                    </blockquote>
-                    <div className="tr-col-meta">
-                      <span>Requirement: <strong>SSD-01</strong></span>
-                      <span>Obligation: <strong>Mandatory</strong></span>
-                    </div>
-                  </div>
-
-                  <div className="tr-doc-col proof-col">
-                    <div className="tr-col-tag">
-                      <span className="tr-tag-label">YOUR PRODUCT PROOF</span>
-                      <span className="tr-tag-source">Atlas_A14_Datasheet.pdf · Page 3</span>
-                    </div>
-                    <blockquote className="tr-doc-quote">
-                      &ldquo;Internal Drive: 512 GB M.2 2280 PCIe Gen 4x4 NVMe SSD, OPAL 2.0 self-encrypting drive compliant.&rdquo;
-                    </blockquote>
-                    <div className="tr-col-meta">
-                      <span>Model: <strong>Atlas A14</strong></span>
-                      <span>Capacity: <strong>512 GB (Threshold Met)</strong></span>
-                    </div>
+            {/* If RAM Amendment test is active, show clean version switcher */}
+            {activeTest === 'ram' && (
+              <div className="tr-version-bar">
+                <div className="tr-version-info">
+                  <IconAlertTriangle size={18} className="tr-warn-icon" />
+                  <div>
+                    <strong>Simulate a Last-Minute Buyer Change</strong>
+                    <span>What happens when the buyer raises the required RAM 48 hours before the deadline?</span>
                   </div>
                 </div>
-
-                {/* AI Result Box */}
-                <div className="tr-ai-result-box pass">
-                  <div className="tr-result-header">
-                    <span className="tr-result-badge pass">✓ 100% SPEC MATCH CONFIRMED</span>
-                    <span className="tr-result-confidence">Nemotron Verification: 99.8% Confidence</span>
+                <div className="tr-version-toggle-group">
+                  <span className="tr-version-label">Rule Version:</span>
+                  <div className="tr-segmented-control">
+                    <button
+                      type="button"
+                      className={`tr-segment-btn ${!ramAddendum ? 'active' : ''}`}
+                      onClick={() => setRamAddendum(false)}
+                    >
+                      Before Update (16 GB)
+                    </button>
+                    <button
+                      type="button"
+                      className={`tr-segment-btn ${ramAddendum ? 'active' : ''}`}
+                      onClick={() => setRamAddendum(true)}
+                    >
+                      After Update (32 GB) ⚠️
+                    </button>
                   </div>
-                  <p className="tr-result-text">
-                    The supplier datasheet directly satisfies Clause 4.2. Model <strong>Atlas A14</strong> provides 512 GB PCIe 4.0 storage with Opal 2.0 encryption. Page citations are saved to your audit trail.
-                  </p>
                 </div>
               </div>
             )}
 
-            {/* Case 2: RAM Amendment Conflict (Warning with Interactive Toggle) */}
-            {activeTest === 'ram' && (
-              <div className="tr-demo-view">
-                <div className="tr-amendment-banner">
-                  <div className="tr-banner-left">
-                    <IconAlertTriangle size={19} className="tr-warn-icon" />
-                    <div>
-                      <strong>Addendum #2 Rule Change Simulation</strong>
-                      <small>The buyer changed the memory requirement 48 hours before the deadline.</small>
+            {/* Test 1: Storage */}
+            {activeTest === 'ssd' && (
+              <div className="tr-comparison-stage">
+                <div className="tr-cards-pair">
+                  {/* Left: Tender Requirement */}
+                  <div className="tr-spec-card tender">
+                    <div className="tr-card-topbar">
+                      <span className="tr-spec-eyebrow">WHAT THE BUYER ASKS FOR</span>
+                      <div className="tr-source-chip">
+                        <IconFileText size={13} />
+                        <span>University_RFP.pdf · Page 14</span>
+                      </div>
                     </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="tr-toggle-btn"
-                    onClick={() => setRamAddendum(v => !v)}
-                  >
-                    <IconRefresh size={14} />
-                    {ramAddendum ? 'Switch to Original Tender (16 GB)' : 'Apply Addendum #2 (32 GB)'}
-                  </button>
-                </div>
 
-                <div className="tr-docs-compare">
-                  <div className={`tr-doc-col tender-col ${ramAddendum ? 'modified' : ''}`}>
-                    <div className="tr-col-tag">
-                      <span className="tr-tag-label">
-                        {ramAddendum ? 'AMENDED TENDER RULE' : 'ORIGINAL TENDER RULE'}
-                      </span>
-                      <span className="tr-tag-source">
-                        {ramAddendum ? 'Addendum_02.pdf · Clause 1.4' : 'Tender_v1.pdf · Page 15'}
-                      </span>
+                    <div className="tr-spec-value">
+                      At least 512 GB Storage (SSD)
                     </div>
-                    <blockquote className="tr-doc-quote">
-                      {ramAddendum
-                        ? '“Clause 4.3 (Amended): Minimum memory requirement is increased to 32 GB DDR5 unified memory.”'
-                        : '“Clause 4.3: Memory must be at least 16 GB DDR5 unified memory.”'}
-                    </blockquote>
-                    <div className="tr-col-meta">
-                      <span>Requirement: <strong>RAM-01</strong></span>
-                      <span>Target: <strong>{ramAddendum ? '32 GB' : '16 GB'}</strong></span>
-                    </div>
-                  </div>
 
-                  <div className="tr-doc-col proof-col">
-                    <div className="tr-col-tag">
-                      <span className="tr-tag-label">YOUR SUBMITTED SPEC SHEET</span>
-                      <span className="tr-tag-source">Atlas_A14_Datasheet.pdf · Page 3</span>
-                    </div>
-                    <blockquote className="tr-doc-quote">
-                      &ldquo;Memory: 16 GB soldered LPDDR5 6400MHz high-efficiency dual-channel RAM.&rdquo;
-                    </blockquote>
-                    <div className="tr-col-meta">
-                      <span>Offered Spec: <strong>16 GB RAM</strong></span>
-                      <span>Status: <strong>Fixed Soldered Module</strong></span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Live Dynamic Result */}
-                {ramAddendum ? (
-                  <div className="tr-ai-result-box warn">
-                    <div className="tr-result-header">
-                      <span className="tr-result-badge warn">⚠️ DISQUALIFICATION RISK DETECTED</span>
-                      <span className="tr-result-confidence">Action Required Before Submission</span>
-                    </div>
-                    <p className="tr-result-text">
-                      <strong>Mismatch Found:</strong> Addendum #2 raised the rule to <strong>32 GB</strong>, but your spec sheet only shows <strong>16 GB</strong>.
-                      TenderReady created a high-priority task: <em>Contact OEM representative for 32 GB configuration document.</em>
+                    <p className="tr-quote-snippet">
+                      &ldquo;Clause 4.2: Storage must be a minimum of 512 GB high-speed SSD with data encryption.&rdquo;
                     </p>
+                  </div>
+
+                  {/* Center Match Badge */}
+                  <div className="tr-center-bridge pass">
+                    <div className="tr-bridge-icon">✓</div>
+                    <span className="tr-bridge-label">MATCH</span>
+                  </div>
+
+                  {/* Right: Supplier Proof */}
+                  <div className="tr-spec-card proof">
+                    <div className="tr-card-topbar">
+                      <span className="tr-spec-eyebrow">WHAT YOUR DOCUMENT PROVES</span>
+                      <div className="tr-source-chip">
+                        <IconFileCertificate size={13} />
+                        <span>Atlas_A14_Datasheet.pdf · Page 3</span>
+                      </div>
+                    </div>
+
+                    <div className="tr-spec-value">
+                      512 GB High-Speed NVMe SSD
+                    </div>
+
+                    <p className="tr-quote-snippet">
+                      &ldquo;Internal Drive: 512 GB PCIe NVMe SSD with built-in hardware security.&rdquo;
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bottom Verdict */}
+                <div className="tr-verdict pass">
+                  <div className="tr-verdict-icon"><IconShieldCheck size={24} /></div>
+                  <div className="tr-verdict-body">
+                    <div className="tr-verdict-title">
+                      <strong>✓ Perfect Match — Ready to Bid</strong>
+                      <span className="tr-verdict-tag">Page Citations Saved</span>
+                    </div>
+                    <p className="tr-verdict-desc">
+                      Your Atlas A14 datasheet meets the 512 GB requirement and encryption rule. The exact page citation is saved to your compliance matrix so reviewers can verify it in seconds.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Test 2: RAM Amendment */}
+            {activeTest === 'ram' && (
+              <div className="tr-comparison-stage">
+                <div className="tr-cards-pair">
+                  {/* Left: Tender Requirement */}
+                  <div className={`tr-spec-card tender ${ramAddendum ? 'modified' : ''}`}>
+                    <div className="tr-card-topbar">
+                      <span className="tr-spec-eyebrow">
+                        {ramAddendum ? 'BUYER UPDATED THIS RULE' : 'ORIGINAL BUYER RULE'}
+                      </span>
+                      <div className="tr-source-chip">
+                        <IconFileText size={13} />
+                        <span>{ramAddendum ? 'Addendum_02.pdf · Page 1' : 'Tender_v1.pdf · Page 15'}</span>
+                      </div>
+                    </div>
+
+                    <div className={`tr-spec-value ${ramAddendum ? 'conflict-val' : ''}`}>
+                      {ramAddendum ? 'Raised to 32 GB RAM' : 'At least 16 GB RAM'}
+                    </div>
+
+                    <p className="tr-quote-snippet">
+                      {ramAddendum
+                        ? '“Clause 4.3 (Update): Minimum memory requirement is increased to 32 GB RAM.”'
+                        : '“Clause 4.3: Memory must be at least 16 GB RAM.”'}
+                    </p>
+                  </div>
+
+                  {/* Center Comparison Bridge */}
+                  <div className={`tr-center-bridge ${ramAddendum ? 'fail' : 'pass'}`}>
+                    <div className="tr-bridge-icon">{ramAddendum ? '≠' : '✓'}</div>
+                    <span className="tr-bridge-label">{ramAddendum ? 'MISMATCH' : 'MATCH'}</span>
+                  </div>
+
+                  {/* Right: Supplier Proof */}
+                  <div className="tr-spec-card proof">
+                    <div className="tr-card-topbar">
+                      <span className="tr-spec-eyebrow">WHAT YOUR DOCUMENT PROVES</span>
+                      <div className="tr-source-chip">
+                        <IconFileCertificate size={13} />
+                        <span>Atlas_A14_Datasheet.pdf · Page 3</span>
+                      </div>
+                    </div>
+
+                    <div className="tr-spec-value">
+                      16 GB RAM (Offered Laptop)
+                    </div>
+
+                    <p className="tr-quote-snippet">
+                      &ldquo;Memory: 16 GB soldered high-efficiency dual-channel RAM.&rdquo;
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bottom Verdict */}
+                {ramAddendum ? (
+                  <div className="tr-verdict warn">
+                    <div className="tr-verdict-icon"><IconAlertTriangle size={24} /></div>
+                    <div className="tr-verdict-body">
+                      <div className="tr-verdict-title">
+                        <strong>⚠️ Warning: Your Offered Spec Falls Short</strong>
+                        <span className="tr-verdict-tag red">Action Needed Before Submitting</span>
+                      </div>
+                      <p className="tr-verdict-desc">
+                        The buyer raised the rule from <strong>16 GB to 32 GB</strong>, but your current datasheet only proves <strong>16 GB</strong>. TenderReady flagged this mismatch so you can swap in a 32 GB model datasheet before submitting your bid.
+                      </p>
+                    </div>
                   </div>
                 ) : (
-                  <div className="tr-ai-result-box pass">
-                    <div className="tr-result-header">
-                      <span className="tr-result-badge pass">✓ ORIGINAL SPECIFICATION PASSED</span>
-                      <span className="tr-result-confidence">16 GB Matches Original Rule</span>
+                  <div className="tr-verdict pass">
+                    <div className="tr-verdict-icon"><IconShieldCheck size={24} /></div>
+                    <div className="tr-verdict-body">
+                      <div className="tr-verdict-title">
+                        <strong>✓ Original Rule Matches</strong>
+                        <span className="tr-verdict-tag">16 GB Meets Original Rule</span>
+                      </div>
+                      <p className="tr-verdict-desc">
+                        Under the original tender, 16 GB was compliant. Click <strong>"After Update (32 GB)"</strong> above to see how TenderReady catches the issue when buyers change rules late.
+                      </p>
                     </div>
-                    <p className="tr-result-text">
-                      Under the original RFP, 16 GB was compliant. Toggle the button above to see what happens when the buyer issues Addendum #2!
-                    </p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Case 3: Warranty Verification (Pass) */}
+            {/* Test 3: Warranty */}
             {activeTest === 'warranty' && (
-              <div className="tr-demo-view">
-                <div className="tr-docs-compare">
-                  <div className="tr-doc-col tender-col">
-                    <div className="tr-col-tag">
-                      <span className="tr-tag-label">TENDER SLA RULE §6.1</span>
-                      <span className="tr-tag-source">University_RFP.pdf · Page 22</span>
+              <div className="tr-comparison-stage">
+                <div className="tr-cards-pair">
+                  {/* Left: Tender Requirement */}
+                  <div className="tr-spec-card tender">
+                    <div className="tr-card-topbar">
+                      <span className="tr-spec-eyebrow">WHAT THE BUYER ASKS FOR</span>
+                      <div className="tr-source-chip">
+                        <IconFileText size={13} />
+                        <span>University_RFP.pdf · Page 22</span>
+                      </div>
                     </div>
-                    <blockquote className="tr-doc-quote">
-                      &ldquo;Clause 6.1: Supplier must provide a minimum 3-year on-site next-business-day warranty with accidental damage protection.&rdquo;
-                    </blockquote>
-                    <div className="tr-col-meta">
-                      <span>Requirement: <strong>WAR-01</strong></span>
-                      <span>Coverage: <strong>3 Years On-Site NBD</strong></span>
+
+                    <div className="tr-spec-value">
+                      3 Years On-Site Support
                     </div>
+
+                    <p className="tr-quote-snippet">
+                      &ldquo;Clause 6.1: Supplier must provide a minimum 3-year on-site next-business-day warranty.&rdquo;
+                    </p>
                   </div>
 
-                  <div className="tr-doc-col proof-col">
-                    <div className="tr-col-tag">
-                      <span className="tr-tag-label">MANUFACTURER LETTER</span>
-                      <span className="tr-tag-source">OEM_Warranty_Letter.pdf · Page 1</span>
+                  {/* Center Match Badge */}
+                  <div className="tr-center-bridge pass">
+                    <div className="tr-bridge-icon">✓</div>
+                    <span className="tr-bridge-label">MATCH</span>
+                  </div>
+
+                  {/* Right: Supplier Proof */}
+                  <div className="tr-spec-card proof">
+                    <div className="tr-card-topbar">
+                      <span className="tr-spec-eyebrow">WHAT YOUR DOCUMENT PROVES</span>
+                      <div className="tr-source-chip">
+                        <IconFileCertificate size={13} />
+                        <span>OEM_Warranty_Letter.pdf · Page 1</span>
+                      </div>
                     </div>
-                    <blockquote className="tr-doc-quote">
-                      &ldquo;We confirm 36-month Premier Support with on-site technician dispatch by next business day and comprehensive accidental damage coverage.&rdquo;
-                    </blockquote>
-                    <div className="tr-col-meta">
-                      <span>Duration: <strong>36 Months (3 Years)</strong></span>
-                      <span>Service Level: <strong>Next Business Day On-Site</strong></span>
+
+                    <div className="tr-spec-value">
+                      36 Months (3 Years) Next-Day Service
                     </div>
+
+                    <p className="tr-quote-snippet">
+                      &ldquo;We confirm 36-month Premier Support with on-site technician dispatch by next business day.&rdquo;
+                    </p>
                   </div>
                 </div>
 
-                <div className="tr-ai-result-box pass">
-                  <div className="tr-result-header">
-                    <span className="tr-result-badge pass">✓ WARRANTY & SLA CONFIRMED</span>
-                    <span className="tr-result-confidence">Nemotron Verification: 100% Match</span>
+                {/* Bottom Verdict */}
+                <div className="tr-verdict pass">
+                  <div className="tr-verdict-icon"><IconShieldCheck size={24} /></div>
+                  <div className="tr-verdict-body">
+                    <div className="tr-verdict-title">
+                      <strong>✓ Support Terms Verified</strong>
+                      <span className="tr-verdict-tag">3-Year Service Confirmed</span>
+                    </div>
+                    <p className="tr-verdict-desc">
+                      Your manufacturer letter guarantees 36 months (3 years) of next-business-day on-site repairs, completely satisfying the buyer's requirement.
+                    </p>
                   </div>
-                  <p className="tr-result-text">
-                    All three conditions satisfied: 3-year term, on-site next-business-day response, and accidental damage coverage. Letter is valid and signed.
-                  </p>
                 </div>
               </div>
             )}
