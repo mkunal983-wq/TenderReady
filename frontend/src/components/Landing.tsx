@@ -59,14 +59,13 @@ export function Landing() {
 
   return (
     <div className="tr-landing">
-      {/* Background Tech Texture & Aurora Mesh */}
+      {/* Living Ambient Light Flow (Calm, Fluid, Non-Distracting) */}
       <div className="tr-background-canvas" aria-hidden="true">
+        <div className="tr-ambient-glow" />
         <div className="tr-orb tr-orb-1" />
         <div className="tr-orb tr-orb-2" />
         <div className="tr-orb tr-orb-3" />
-        <div className="tr-bg-grid-major" />
-        <div className="tr-bg-grid" />
-        <div className="tr-bg-dots" />
+        <div className="tr-orb tr-orb-4" />
       </div>
 
       {/* Top Navigation Bar */}
