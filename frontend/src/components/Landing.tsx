@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   IconArrowRight,
-  IconBolt,
   IconShieldCheck,
   IconRefresh,
   IconFileText,
@@ -11,33 +10,75 @@ import {
   IconFiles,
   IconListCheck,
   IconCheck,
-  IconAlertTriangle,
   IconFileCertificate,
-  IconClock,
   IconLock,
+  IconScale,
+  IconDatabase,
 } from '@tabler/icons-react';
 import './landing.css';
 
-const capabilities = [
+const metrics = [
   {
-    Icon: IconBolt,
-    label: 'AI Requirement Extraction',
-    detail: 'Clause-by-clause indexing with page citations',
+    value: '100%',
+    label: 'Source-Linked Traceability',
+    desc: 'Every requirement and finding links directly to exact PDF page coordinates.',
   },
   {
-    Icon: IconShieldCheck,
-    label: 'Evidence Verification',
-    detail: 'Model, entity, dates & threshold checks',
+    value: 'Real-Time',
+    label: 'Addendum Delta Diffing',
+    desc: 'Immediate impact alerts whenever tender amendments or corrigenda drop.',
   },
   {
-    Icon: IconRefresh,
-    label: 'Amendment Tracking',
-    detail: 'Instant delta analysis on tender addenda',
+    value: 'Zero',
+    label: 'Synthetic Hallucination',
+    desc: 'Deterministic clause reconciliation against supplier documents.',
   },
   {
-    Icon: IconFileText,
-    label: 'Exportable Evidence Pack',
-    detail: 'Source-linked compliance dossier for submission',
+    value: 'Human-Led',
+    label: 'Governance & Sign-Off',
+    desc: 'Compliance officers and legal leads maintain full approval authority.',
+  },
+];
+
+const pipelineStages = [
+  {
+    id: 'ingest',
+    stage: '01',
+    name: 'Ingestion & Clause Intelligence',
+    icon: IconFileText,
+    subtitle: 'From unstructured multi-hundred page tender dossiers into structured, indexed requirements.',
+    features: [
+      'Automated extraction of mandatory technical and commercial specifications',
+      'Verbatim clause citation with exact page and section coordinates',
+      'Document revision indexing across original RFPs and subsequent releases',
+      'Categorization by hardware, software, SLA, legal terms, and pricing',
+    ],
+  },
+  {
+    id: 'verify',
+    stage: '02',
+    name: 'Evidence & Specification Reconciliation',
+    icon: IconShieldCheck,
+    subtitle: 'Cross-verifying supplier datasheets, OEM brochures, and certifications against extracted mandates.',
+    features: [
+      'Multi-document cross-checks for models, capacities, and technical thresholds',
+      'Entity identity, corporate naming, and certificate expiry verification',
+      'Automatic detection of spec shortfalls, conflicting claims, and ambiguities',
+      'Granular confidence scoring with direct citations into supplier PDFs',
+    ],
+  },
+  {
+    id: 'govern',
+    stage: '03',
+    name: 'Addendum Tracking & Submission Dossier',
+    icon: IconFileCertificate,
+    subtitle: 'Handling amendment impacts, recording officer reviews, and exporting immutable audit packs.',
+    features: [
+      'Instant delta alerts highlighting requirements affected by tender addenda',
+      'Structured task assignments for review bottlenecks and corrective proof',
+      'Immutable audit trail recording reviewer comments and sign-off timestamps',
+      'Exportable submission pack with verified compliance matrices and proof links',
+    ],
   },
 ];
 
@@ -45,42 +86,45 @@ const audiences = [
   {
     Icon: IconBuilding,
     title: 'IT Hardware Suppliers',
-    desc: 'Verify OEM specifications, part numbers, and warranty thresholds against tender mandates before committing.',
+    desc: 'Verify OEM specifications, part numbers, warranty levels, and delivery commitments against tender mandates before committing bid resources.',
   },
   {
     Icon: IconSchool,
     title: 'Education & Research',
-    desc: 'Comply with institutional procurement guidelines, scoring criteria, and strict delivery commitments.',
+    desc: 'Ensure complete alignment with institutional procurement guidelines, scoring criteria, statutory mandates, and strict tender terms.',
   },
   {
     Icon: IconBuildingBank,
     title: 'Institutional Procurement',
-    desc: 'Ensure rigorous auditability with complete provenance tracking and human sign-off on every clause.',
+    desc: 'Equip evaluation committees with an unassailable audit trail, verified provenance, and human-in-the-loop sign-off on every clause.',
   },
 ];
 
-const steps = [
+const capabilities = [
   {
-    step: '01',
-    title: 'Ingest Tender Documents',
-    body: 'Upload the original tender PDF. The system extracts mandatory requirements, technical specs, and commercial clauses with exact page references.',
+    Icon: IconFiles,
+    title: 'Multi-Revision PDF Indexing',
+    desc: 'Ingest tenders, appendices, and corrigenda with coordinate-level page mapping.',
   },
   {
-    step: '02',
-    title: 'Verify Supplier Evidence',
-    body: 'Upload datasheets, certifications, and supplier proofs. The system validates entity names, specs, and dates—flagging ambiguities or conflicts.',
+    Icon: IconScale,
+    title: 'Threshold & Constraint Logic',
+    desc: 'Enforce numerical limits (RAM, storage, warranty years, SLA response times).',
   },
   {
-    step: '03',
-    title: 'Track Addenda & Export',
-    body: 'When amendments arrive, automatically evaluate which requirements changed. Record human review decisions and export an immutable evidence pack.',
+    Icon: IconRefresh,
+    title: 'Automated Addendum Diffs',
+    desc: 'Flag modified, added, or removed requirements without re-auditing from scratch.',
+  },
+  {
+    Icon: IconLock,
+    title: 'Immutable Evidence Dossier',
+    desc: 'Export comprehensive audit packs ready for bid submission and evaluation.',
   },
 ];
-
-type DemoTab = 'matched' | 'amendment' | 'signoff';
 
 export function Landing() {
-  const [activeTab, setActiveTab] = useState<DemoTab>('matched');
+  const [selectedStage, setSelectedStage] = useState(0);
 
   return (
     <div className="tr-landing">
@@ -94,9 +138,9 @@ export function Landing() {
           </span>
         </a>
         <nav aria-label="Main navigation">
-          <a href="#product-preview">Product</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#capabilities">Capabilities</a>
           <a href="#for-suppliers">Target Sectors</a>
-          <a href="#how-it-works">How It Works</a>
           <a href="#workspace-start">Workspaces</a>
         </nav>
         <a className="tr-button tr-primary tr-nav-cta" href="#workspace-start">
@@ -104,235 +148,145 @@ export function Landing() {
         </a>
       </header>
 
-      {/* Hero Section */}
+      {/* Hero Section - Executive Centered Layout (No Screenshots) */}
       <section className="tr-hero" aria-labelledby="tr-headline">
-        <div className="tr-hero-copy">
+        <div className="tr-hero-inner">
           <div className="tr-eyebrow">
             <span className="tr-eyebrow-dot" aria-hidden="true" />
-            <span>AI-POWERED PROCUREMENT & COMPLIANCE</span>
+            <span>AI-POWERED PROCUREMENT & COMPLIANCE INFRASTRUCTURE</span>
           </div>
+
           <h1 id="tr-headline">
-            From complex tenders to{' '}
-            <span className="tr-brand-accent">submission-ready, source-linked</span> evidence.
+            From complex tenders to <span className="tr-brand-accent">submission-ready, source-linked</span> evidence.
           </h1>
-          <p>
+
+          <p className="tr-hero-lead">
             TenderReady equips IT suppliers and procurement teams to systematically extract requirements,
             cross-verify evidence against original PDFs, and track tender amendments with complete auditability.
           </p>
+
           <div className="tr-actions">
             <a className="tr-button tr-primary" href="#workspace-start">
               Launch Workspace <IconArrowRight size={17} />
             </a>
-            <a className="tr-button tr-secondary" href="#how-it-works">
-              <IconListCheck size={17} /> Review Methodology
+            <a className="tr-button tr-secondary" href="#architecture">
+              <IconListCheck size={17} /> Explore Architecture
             </a>
-          </div>
-
-          <div className="tr-capabilities">
-            {capabilities.map(({ Icon, label, detail }) => (
-              <div key={label} className="tr-capability-item">
-                <span className="tr-capability-icon">
-                  <Icon size={18} />
-                </span>
-                <div>
-                  <strong>{label}</strong>
-                  <small>{detail}</small>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
-        {/* Live Interactive Procurement Audit Workbench (Replaces static screenshot) */}
-        <div className="tr-visual" id="product-preview" aria-label="TenderReady interactive demo">
-          <div className="tr-workbench">
-            {/* Top Bar with Workspace Context */}
-            <div className="tr-workbench-header">
-              <div className="tr-workbench-meta">
-                <span className="tr-badge-live">LIVE AUDIT WORKSPACE</span>
-                <span className="tr-workbench-title">RFP-2026-IT · University Laptop Procurement</span>
+        {/* Executive Metrics Strip */}
+        <div className="tr-hero-metrics" role="region" aria-label="Key Platform Guarantees">
+          {metrics.map(({ value, label, desc }) => (
+            <div className="tr-metric-card" key={label}>
+              <span className="tr-metric-value">{value}</span>
+              <strong className="tr-metric-label">{label}</strong>
+              <p className="tr-metric-desc">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* End-to-End Pipeline Architecture (Interactive, Graphic-Free, No Mockups) */}
+      <section className="tr-pipeline-section" id="architecture" aria-labelledby="arch-title">
+        <div className="tr-section-heading">
+          <span className="tr-eyebrow-mini">END-TO-END METHODOLOGY</span>
+          <h2 id="arch-title">Procurement Intelligence Architecture</h2>
+          <p>
+            A rigorous three-tier compliance engine built to handle high-value tenders where a single missed specification can cause disqualification.
+          </p>
+        </div>
+
+        <div className="tr-pipeline-container">
+          {/* Stage Navigation Tabs */}
+          <div className="tr-stage-nav" role="tablist" aria-label="Architecture stages">
+            {pipelineStages.map((stage, idx) => {
+              const Icon = stage.icon;
+              const isActive = selectedStage === idx;
+              return (
+                <button
+                  key={stage.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  className={`tr-stage-tab ${isActive ? 'active' : ''}`}
+                  onClick={() => setSelectedStage(idx)}
+                >
+                  <span className="tr-stage-num">{stage.stage}</span>
+                  <div className="tr-stage-tab-text">
+                    <span className="tr-stage-name">{stage.name}</span>
+                    <small className="tr-stage-sub">Phase {stage.stage}</small>
+                  </div>
+                  <Icon size={18} className="tr-stage-icon" />
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Stage Detailed Panel */}
+          <div className="tr-stage-detail" role="tabpanel">
+            <div className="tr-stage-detail-header">
+              <div className="tr-stage-badge">
+                <span>PHASE {pipelineStages[selectedStage].stage}</span>
               </div>
-              <div className="tr-workbench-stats">
-                <span className="tr-stat-pill green">
-                  <span className="tr-stat-num">22</span> Verified
-                </span>
-                <span className="tr-stat-pill amber">
-                  <span className="tr-stat-num">1</span> Review Flag
-                </span>
-                <span className="tr-stat-pill blue">
-                  <span className="tr-stat-num">1</span> Addendum Delta
-                </span>
+              <h3>{pipelineStages[selectedStage].name}</h3>
+              <p>{pipelineStages[selectedStage].subtitle}</p>
+            </div>
+
+            <div className="tr-stage-features-grid">
+              {pipelineStages[selectedStage].features.map((feature, i) => (
+                <div className="tr-feature-point" key={i}>
+                  <span className="tr-point-check">
+                    <IconCheck size={16} />
+                  </span>
+                  <span>{feature}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="tr-stage-detail-footer">
+              <div className="tr-detail-pill">
+                <IconDatabase size={14} /> Deterministic Extraction
               </div>
-            </div>
-
-            {/* Interactive Tab Switcher */}
-            <div className="tr-workbench-tabs" role="tablist" aria-label="Audit findings view">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'matched'}
-                className={`tr-tab-btn ${activeTab === 'matched' ? 'active' : ''}`}
-                onClick={() => setActiveTab('matched')}
-              >
-                <IconCheck size={15} /> Clause SSD-01 (Verified)
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'amendment'}
-                className={`tr-tab-btn ${activeTab === 'amendment' ? 'active' : ''}`}
-                onClick={() => setActiveTab('amendment')}
-              >
-                <IconAlertTriangle size={15} /> Clause RAM-01 (Addendum #2)
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'signoff'}
-                className={`tr-tab-btn ${activeTab === 'signoff' ? 'active' : ''}`}
-                onClick={() => setActiveTab('signoff')}
-              >
-                <IconFileCertificate size={15} /> Submission Dossier
-              </button>
-            </div>
-
-            {/* Tab Body */}
-            <div className="tr-workbench-body">
-              {activeTab === 'matched' && (
-                <div className="tr-view-matched">
-                  {/* Tender Requirement Side */}
-                  <div className="tr-clause-box">
-                    <div className="tr-box-header">
-                      <span className="tr-box-tag tender">TENDER REQUIREMENT §4.2</span>
-                      <span className="tr-box-source">Original_RFP.pdf · Page 14</span>
-                    </div>
-                    <blockquote className="tr-quote">
-                      &ldquo;Primary storage must be at least 512 GB PCIe 4.0 NVMe M.2 Solid State Drive with hardware-level TCG Opal encryption support.&rdquo;
-                    </blockquote>
-                    <div className="tr-meta-row">
-                      <span>Requirement ID: <strong>SSD-01</strong></span>
-                      <span>Category: <strong>Storage Hardware</strong></span>
-                      <span>Mandatory: <strong>Yes</strong></span>
-                    </div>
-                  </div>
-
-                  {/* Supplier Proof Match */}
-                  <div className="tr-clause-box evidence">
-                    <div className="tr-box-header">
-                      <span className="tr-box-tag supplier">SUPPLIER EVIDENCE MATCH</span>
-                      <span className="tr-box-source">Atlas_A14_Datasheet.pdf · Page 3</span>
-                    </div>
-                    <blockquote className="tr-quote match">
-                      &ldquo;Internal Drive: 512 GB M.2 2280 PCIe Gen 4x4 NVMe SSD, OPAL 2.0 self-encrypting drive compliant.&rdquo;
-                    </blockquote>
-                    <div className="tr-verification-badge verified">
-                      <span className="tr-verified-icon"><IconCheck size={16} /></span>
-                      <div>
-                        <strong>Supported by Evidence · Model & Spec Confirmed</strong>
-                        <small>Nemotron cross-check: 512 GB threshold met · Opal 2.0 supported</small>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'amendment' && (
-                <div className="tr-view-amendment">
-                  <div className="tr-amendment-alert">
-                    <span className="tr-alert-icon"><IconAlertTriangle size={18} /></span>
-                    <div>
-                      <strong>Addendum #2 Modification Detected</strong>
-                      <p>Issued 48 hours prior to tender submission. Minimum memory threshold revised.</p>
-                    </div>
-                  </div>
-
-                  <div className="tr-comparison-grid">
-                    <div className="tr-clause-box original">
-                      <div className="tr-box-header">
-                        <span className="tr-box-tag">ORIGINAL SPEC (§4.3)</span>
-                        <span className="tr-box-source">Tender_v1.pdf</span>
-                      </div>
-                      <p className="tr-clause-text">&ldquo;RAM: 16 GB DDR5 unified memory.&rdquo;</p>
-                      <span className="tr-status-tag passed">Was Verified (16 GB)</span>
-                    </div>
-
-                    <div className="tr-clause-box modified">
-                      <div className="tr-box-header">
-                        <span className="tr-box-tag alert">ADDENDUM #2 REVISION</span>
-                        <span className="tr-box-source">Addendum_02.pdf · Clause 1.4</span>
-                      </div>
-                      <p className="tr-clause-text">&ldquo;RAM requirement is amended to: Minimum 32 GB DDR5.&rdquo;</p>
-                      <span className="tr-status-tag failed">Discrepancy: Supplier PDF shows 16 GB</span>
-                    </div>
-                  </div>
-
-                  <div className="tr-action-footer">
-                    <span className="tr-action-hint">
-                      <IconClock size={15} /> Corrective Action Assigned: Request 32 GB configuration bulletin from OEM.
-                    </span>
-                    <span className="tr-action-pill">Needs Human Sign-Off</span>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'signoff' && (
-                <div className="tr-view-signoff">
-                  <div className="tr-dossier-summary">
-                    <div className="tr-dossier-stat">
-                      <span className="tr-stat-label">Readiness Index</span>
-                      <strong className="tr-stat-value">95.8%</strong>
-                      <span className="tr-stat-note">23 of 24 Clauses Fully Evidenced</span>
-                    </div>
-                    <div className="tr-dossier-stat">
-                      <span className="tr-stat-label">Audit Integrity</span>
-                      <strong className="tr-stat-value verified">SHA-256</strong>
-                      <span className="tr-stat-note">Immutable Provenance Log</span>
-                    </div>
-                    <div className="tr-dossier-stat">
-                      <span className="tr-stat-label">Reviewers</span>
-                      <strong className="tr-stat-value">2 Officers</strong>
-                      <span className="tr-stat-note">Legal & Technical Lead Sign-off</span>
-                    </div>
-                  </div>
-
-                  <div className="tr-dossier-actions">
-                    <div className="tr-dossier-text">
-                      <strong>Export Source-Linked Tender Evidence Pack</strong>
-                      <p>Generates an annotated PDF compilation linking every tender clause directly to supplier document pages with digital verification signatures.</p>
-                    </div>
-                    <a href="#workspace-start" className="tr-button tr-primary tr-compact-btn">
-                      Generate Dossier <IconArrowRight size={14} />
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Workbench Footer Bar */}
-            <div className="tr-workbench-footer">
-              <span className="tr-footer-item">
-                <IconLock size={13} /> End-to-End Coordinate Traceability
-              </span>
-              <span className="tr-footer-sep">·</span>
-              <span className="tr-footer-item">
-                <IconFiles size={13} /> Original & Addendum Version Diffing
-              </span>
-              <span className="tr-footer-sep">·</span>
-              <span className="tr-footer-item">
-                <IconShieldCheck size={13} /> Human Governance Standard
-              </span>
+              <div className="tr-detail-pill">
+                <IconLock size={14} /> Immutable Audit Provenance
+              </div>
+              <div className="tr-detail-pill">
+                <IconShieldCheck size={14} /> Nemotron LLM Verified
+              </div>
             </div>
           </div>
         </div>
       </section>
 
+      {/* Core Platform Capabilities Grid */}
+      <section className="tr-capabilities-section" id="capabilities" aria-labelledby="cap-title">
+        <div className="tr-section-heading">
+          <span className="tr-eyebrow-mini">CORE CAPABILITIES</span>
+          <h2 id="cap-title">Built for Audit Integrity & Compliance Rigor</h2>
+          <p>Every feature is designed to replace manual spreadsheet cross-referencing with verifiable proof.</p>
+        </div>
+
+        <div className="tr-capabilities-grid">
+          {capabilities.map(({ Icon, title, desc }) => (
+            <div className="tr-capability-card" key={title}>
+              <div className="tr-capability-card-icon">
+                <Icon size={22} />
+              </div>
+              <h3>{title}</h3>
+              <p>{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Target Sectors & Trust Section */}
       <section className="tr-proof" id="for-suppliers" aria-label="Who TenderReady is for">
-        <div className="tr-proof-heading">
-          <span className="tr-eyebrow-mini">ENTERPRISE-GRADE ASSURANCE</span>
-          <h2>Built for procurement teams with zero tolerance for non-compliance</h2>
+        <div className="tr-section-heading">
+          <span className="tr-eyebrow-mini">TARGET SECTORS</span>
+          <h2>Built for Teams with Zero Tolerance for Non-Compliance</h2>
           <p>
-            When submitting multi-million dollar tenders, manual oversight can easily miss a single altered clause or missing certificate. TenderReady creates an immutable trail of proof.
+            When preparing multi-million dollar submissions, manual oversight easily misses a single altered clause or missing certificate.
           </p>
         </div>
 
@@ -371,27 +325,7 @@ export function Landing() {
             </div>
           </div>
         </div>
-      </section>
 
-      {/* How it Works Section */}
-      <section className="tr-how" id="how-it-works">
-        <div className="tr-how-heading">
-          <span className="tr-eyebrow-mini">STRUCTURED PROCESS</span>
-          <h2>From tender dossier to <span>submission-ready proof</span></h2>
-          <p>A rigorous three-step audit cycle designed to eliminate blind spots.</p>
-        </div>
-        <div className="tr-steps">
-          {steps.map(({ step, title, body }) => (
-            <article className="tr-step-card" key={title}>
-              <div className="tr-step-top">
-                <span className="tr-step-number">{step}</span>
-                <span className="tr-step-tag">Phase {step}</span>
-              </div>
-              <h3>{title}</h3>
-              <p>{body}</p>
-            </article>
-          ))}
-        </div>
         <div className="tr-disclaimer-box">
           <IconShieldCheck size={20} className="tr-disclaimer-icon" />
           <p>
