@@ -161,7 +161,13 @@ def condition_criterion(req, condition, kind):
                 'quote': quote, 'evidence_type': 'certificate'}
 
     value, unit, operator = condition.get('value_text'), condition.get('unit_text'), condition.get('operator')
-    if not isinstance(value, str) or not isinstance(unit, str) or unit.casefold() != 'gb' or value not in quote:
+    if not isinstance(value, str) or not isinstance(unit, str) or value not in quote:
+        return None
+    # Some models preserve the measured attribute inside unit_text ("GB RAM").
+    # Keep that raw extraction intact; accept only this bounded source-backed
+    # form, and check the attribute against the independently parsed clause.
+    unit_match = re.fullmatch(r'GB(?:\s+(RAM|memory|storage|SSD))?', unit, re.I)
+    if not unit_match or (unit_match.group(1) and unit not in quote):
         return None
     value_match = re.fullmatch(r'([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)(?:\s*GB)?', value.strip(), re.I)
     if not value_match:
@@ -183,6 +189,10 @@ def condition_criterion(req, condition, kind):
     matches = [field for field, pattern in fields if re.search(pattern, text, re.I)]
     if len(matches) != 1 or len(re.findall(r'\b[0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?\s*GB\b', text, re.I)) != 1:
         return None
+    if unit_match.group(1):
+        unit_field = 'ram_gb' if unit_match.group(1).casefold() in {'ram', 'memory'} else 'storage_gb'
+        if unit_field != matches[0]:
+            return None
     # Reject negation and conditional/alternative clauses we cannot interpret.
     # A model may quote only the positive-looking fragment of a negated or
     # conditional sentence; inspect the complete clause before suggesting a rule.

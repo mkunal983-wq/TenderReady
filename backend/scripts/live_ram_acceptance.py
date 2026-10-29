@@ -73,7 +73,7 @@ def main():
             return 2
         requirements = call('GET', docbase + '/requirements')
         pages = {p['page']: p['text'] for p in call('GET', docbase + '/pages')}
-        candidates = [r for r in requirements if any(c['operator'] == '>=' and c['value_text'] == '32' and c['unit_text'] == 'GB' for c in r['numeric_conditions'])]
+        candidates = [r for r in requirements if any(c['operator'] == '>=' and c['value_text'] == '32' and c['unit_text'] in {'GB', 'GB RAM'} for c in r['numeric_conditions'])]
         if not candidates:
             raise RuntimeError('Provider responded, but no valid >=32 GB condition was extracted. Human review required.')
         row = candidates[0]
@@ -92,6 +92,7 @@ def main():
             runs = db.execute(select(ModelRun, ModelRunContext).join(ModelRunContext, ModelRunContext.model_run_id == ModelRun.id)
                 .where(ModelRun.workspace_id == workspace['id'], ModelRun.outcome == 'succeeded')).all()
             assert runs, 'No persisted successful model-run context found.'
+            assert all(r.model == settings.nebius_model for r, _ in runs), 'Backend used a different model; restart it.'
             metadata = [{'id': r.id, 'model': r.model, 'input_tokens': r.input_tokens, 'output_tokens': r.output_tokens,
                          'duration_ms': r.duration_ms, 'outcome': r.outcome, 'created_at': r.created_at.isoformat()} for r, _ in runs]
     finally:

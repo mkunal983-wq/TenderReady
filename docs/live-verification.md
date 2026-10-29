@@ -25,3 +25,11 @@ Results: live acceptance exit 0; **183 backend tests passed** in 45.99 seconds w
 To reproduce, configure your own key privately with `python backend/scripts/configure_nebius_key.py`, verify your account's model catalog, restart the backend, and run the commands above. Inference consumes provider credits. Missing credentials produce a blocked status, never a fabricated successful run.
 
 This verifies the stated synthetic acceptance scenario, not arbitrary PDF accuracy or production readiness. Evidence parsing remains limited to explicit labelled facts. Product scope, ambiguous clauses, source authenticity and approvals still require human review. No keys, database copies, private uploads or account billing data are included in this repository.
+
+## Nemotron Ultra 550B
+
+The default model was switched to `nvidia/Nemotron-3-Ultra-550b-a55b` on 29 October 2026 after confirming availability in the authenticated account catalog. The same real PDF acceptance test passed: a mandatory minimum of 32 GB RAM on page 2 conflicted with 16 GB evidence on page 1. Two successful Ultra calls persisted usage of 1,232 / 427 and 1,216 / 944 input / output tokens.
+
+Ultra can preserve an attribute in `unit_text`, for example `GB RAM`. The deterministic verifier now accepts only bounded GB-plus-attribute forms that occur in the source quote and match the independently parsed RAM/storage field. It retains the raw model extraction, refuses ambiguous or unsupported units, and never uses semantic similarity as proof. Earlier extraction attempts are preserved; their initial acceptance failures exposed this format mismatch. The extraction prompt now requests a standalone measurement unit, and the live acceptance script also asserts that the backend actually used the configured model.
+
+After the compatibility fix: **189 backend tests passed**, with three upstream deprecation warnings. No database migration or frontend source change was needed. Human review and product-scope checks remain required. Set `NEBIUS_MODEL` on the server to select an account-available model; historical Super and Ultra run records retain their original model identifiers. No relative performance or cost advantage was established by this small test.

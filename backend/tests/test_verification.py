@@ -14,7 +14,8 @@ from test_documents import config, workspace
 TENDER = 'Model: Atlas A14\nRAM: at least 16 GB'
 
 
-def test_extracted_numeric_condition_drives_source_grounded_verification(database, tmp_path):
+@pytest.mark.parametrize('extracted_unit', ['GB', 'GB RAM'])
+def test_extracted_numeric_condition_drives_source_grounded_verification(database, tmp_path, extracted_unit):
     engine, sessions = database
     with TestClient(base_url='http://127.0.0.1:8000', app=create_app(config(tmp_path), engine), client=('127.0.0.1', 1)) as client:
         wid = workspace(client)
@@ -24,7 +25,7 @@ def test_extracted_numeric_condition_drives_source_grounded_verification(databas
             span = db.scalar(select(SourceSpan).where(SourceSpan.document_version_id == doc['id']))
             req = RequirementVersion(workspace_id=wid, requirement_key=str(uuid4()), version=1,
                 source_span_id=span.id, statement=statement, category='numeric_threshold', obligation='mandatory',
-                condition={'provenance':'nemotron_extraction', 'numeric_conditions':[{'operator':'>=', 'value_text':'32', 'unit_text':'GB', 'quote':statement}], 'date_conditions':[]})
+                condition={'provenance':'nemotron_extraction', 'numeric_conditions':[{'operator':'>=', 'value_text':'32', 'unit_text':extracted_unit, 'quote':statement}], 'date_conditions':[]})
             db.add(req); db.flush(); rid = req.id
         send_pdf(client, wid, pdf('Model: Atlas A14\nRAM: 16 GB'), 'datasheet')
         suggested = client.get(f'/workspaces/{wid}/requirements/{rid}/verification').json()['suggested_criteria']
@@ -78,6 +79,14 @@ def test_short_condition_quote_is_grounded_in_the_entire_requirement(statement, 
 ])
 def test_ambiguous_or_unsupported_ai_interpretations_are_not_auto_mapped(statement, operator):
     condition = {'operator':operator, 'value_text':'32', 'unit_text':'GB', 'quote':statement}
+    req = SimpleNamespace(statement=statement, condition={'numeric_conditions':[condition]})
+    assert condition_criterion(req, condition, 'numeric') is None
+
+
+@pytest.mark.parametrize('unit', ['GB storage', 'GiB RAM', 'GB RAM per module', 'GB RAM or storage', 'TB'])
+def test_compound_unit_does_not_override_source_field_or_measurement(unit):
+    statement = 'The laptop must have at least 32 GB RAM.'
+    condition = {'operator':'>=', 'value_text':'32', 'unit_text':unit, 'quote':statement}
     req = SimpleNamespace(statement=statement, condition={'numeric_conditions':[condition]})
     assert condition_criterion(req, condition, 'numeric') is None
 

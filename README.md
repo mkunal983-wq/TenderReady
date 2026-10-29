@@ -110,7 +110,7 @@ The prompt hides the key and saves server configuration with owner-only permissi
 ```dotenv
 NEBIUS_BASE_URL=https://api.tokenfactory.nebius.com/v1
 # Confirm the exact model through account discovery before inference:
-NEBIUS_MODEL=nvidia/nemotron-3-super-120b-a12b
+NEBIUS_MODEL=nvidia/Nemotron-3-Ultra-550b-a55b
 NEBIUS_JSON_MODE=false
 ```
 
@@ -153,7 +153,7 @@ npm run typecheck
 npm run build
 ```
 
-Latest local verification on 29 October 2026: **183 backend tests and 23 frontend tests passed**, lint/typechecking/build passed, and no Alembic schema drift. Provider transport mocks occur only in automated tests and are not live-inference evidence. The offline acceptance path uses actual PDF parsing, persistence, checks and exports. Existing upstream deprecation/Motion build warnings are non-blocking.
+Latest local verification on 29 October 2026: **189 backend tests and 23 frontend tests passed**, lint/typechecking/build passed, and no Alembic schema drift. Provider transport mocks occur only in automated tests and are not live-inference evidence. The offline acceptance path uses actual PDF parsing, persistence, checks and exports. Existing upstream deprecation/Motion build warnings are non-blocking.
 
 ## Configuration and boundaries
 

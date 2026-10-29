@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     app_env: Literal["development", "production"] = "development"
     nebius_api_key: SecretStr = SecretStr("")
     nebius_base_url: str = "https://api.tokenfactory.nebius.com/v1"
-    nebius_model: str = "nvidia/nemotron-3-super-120b-a12b"
+    nebius_model: str = "nvidia/Nemotron-3-Ultra-550b-a55b"
     nebius_json_mode: bool = False
     nebius_timeout_seconds: float = Field(default=60, gt=0, le=180)
     nebius_max_output_tokens: int = Field(default=8192, ge=128, le=16384)
