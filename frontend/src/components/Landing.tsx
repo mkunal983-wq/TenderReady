@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   IconArrowRight,
   IconBolt,
@@ -10,6 +11,10 @@ import {
   IconFiles,
   IconListCheck,
   IconCheck,
+  IconAlertTriangle,
+  IconFileCertificate,
+  IconClock,
+  IconLock,
 } from '@tabler/icons-react';
 import './landing.css';
 
@@ -72,7 +77,11 @@ const steps = [
   },
 ];
 
+type DemoTab = 'matched' | 'amendment' | 'signoff';
+
 export function Landing() {
+  const [activeTab, setActiveTab] = useState<DemoTab>('matched');
+
   return (
     <div className="tr-landing">
       {/* Top Navigation */}
@@ -134,61 +143,184 @@ export function Landing() {
           </div>
         </div>
 
-        {/* Product Showcase */}
-        <div className="tr-visual" id="product-preview" aria-label="TenderReady product preview">
-          <figure className="tr-app-frame">
-            <div className="tr-window-chrome">
-              <div className="tr-window-controls" aria-hidden="true">
-                <span className="tr-dot red" />
-                <span className="tr-dot yellow" />
-                <span className="tr-dot green" />
+        {/* Live Interactive Procurement Audit Workbench (Replaces static screenshot) */}
+        <div className="tr-visual" id="product-preview" aria-label="TenderReady interactive demo">
+          <div className="tr-workbench">
+            {/* Top Bar with Workspace Context */}
+            <div className="tr-workbench-header">
+              <div className="tr-workbench-meta">
+                <span className="tr-badge-live">LIVE AUDIT WORKSPACE</span>
+                <span className="tr-workbench-title">RFP-2026-IT · University Laptop Procurement</span>
               </div>
-              <div className="tr-window-address">
-                <span className="tr-lock-icon" aria-hidden="true">🔒</span>
-                <span>tenderready.internal/workspaces/tender-audit/readiness</span>
-              </div>
-              <div className="tr-window-status">
-                <span className="tr-status-dot" />
-                <span>Nemotron-verified</span>
+              <div className="tr-workbench-stats">
+                <span className="tr-stat-pill green">
+                  <span className="tr-stat-num">22</span> Verified
+                </span>
+                <span className="tr-stat-pill amber">
+                  <span className="tr-stat-num">1</span> Review Flag
+                </span>
+                <span className="tr-stat-pill blue">
+                  <span className="tr-stat-num">1</span> Addendum Delta
+                </span>
               </div>
             </div>
-            <div className="tr-screenshot-wrapper">
-              <img
-                src="/tenderready-dashboard.png"
-                width="1113"
-                height="853"
-                alt="Actual TenderReady evidence readiness interface, showing requirements review and audit findings."
-                fetchPriority="high"
-              />
-            </div>
-            <figcaption className="tr-caption">
-              <span>Production Interface</span>
-              <span className="tr-sep">·</span>
-              <span>Source-linked evidence verification</span>
-              <span className="tr-sep">·</span>
-              <span>Human sign-off workflow</span>
-            </figcaption>
-          </figure>
 
-          {/* Clean, docked annotation callouts */}
-          <div className="tr-annotation-bar">
-            <div className="tr-annotation-card">
-              <span className="tr-annotation-icon teal">
-                <IconFiles size={19} />
-              </span>
-              <div>
-                <strong>Tender & Amendment Ingestion</strong>
-                <small>Multi-revision PDF clause extraction</small>
-              </div>
+            {/* Interactive Tab Switcher */}
+            <div className="tr-workbench-tabs" role="tablist" aria-label="Audit findings view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'matched'}
+                className={`tr-tab-btn ${activeTab === 'matched' ? 'active' : ''}`}
+                onClick={() => setActiveTab('matched')}
+              >
+                <IconCheck size={15} /> Clause SSD-01 (Verified)
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'amendment'}
+                className={`tr-tab-btn ${activeTab === 'amendment' ? 'active' : ''}`}
+                onClick={() => setActiveTab('amendment')}
+              >
+                <IconAlertTriangle size={15} /> Clause RAM-01 (Addendum #2)
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'signoff'}
+                className={`tr-tab-btn ${activeTab === 'signoff' ? 'active' : ''}`}
+                onClick={() => setActiveTab('signoff')}
+              >
+                <IconFileCertificate size={15} /> Submission Dossier
+              </button>
             </div>
-            <div className="tr-annotation-card">
-              <span className="tr-annotation-icon green">
-                <IconShieldCheck size={19} />
+
+            {/* Tab Body */}
+            <div className="tr-workbench-body">
+              {activeTab === 'matched' && (
+                <div className="tr-view-matched">
+                  {/* Tender Requirement Side */}
+                  <div className="tr-clause-box">
+                    <div className="tr-box-header">
+                      <span className="tr-box-tag tender">TENDER REQUIREMENT §4.2</span>
+                      <span className="tr-box-source">Original_RFP.pdf · Page 14</span>
+                    </div>
+                    <blockquote className="tr-quote">
+                      &ldquo;Primary storage must be at least 512 GB PCIe 4.0 NVMe M.2 Solid State Drive with hardware-level TCG Opal encryption support.&rdquo;
+                    </blockquote>
+                    <div className="tr-meta-row">
+                      <span>Requirement ID: <strong>SSD-01</strong></span>
+                      <span>Category: <strong>Storage Hardware</strong></span>
+                      <span>Mandatory: <strong>Yes</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Supplier Proof Match */}
+                  <div className="tr-clause-box evidence">
+                    <div className="tr-box-header">
+                      <span className="tr-box-tag supplier">SUPPLIER EVIDENCE MATCH</span>
+                      <span className="tr-box-source">Atlas_A14_Datasheet.pdf · Page 3</span>
+                    </div>
+                    <blockquote className="tr-quote match">
+                      &ldquo;Internal Drive: 512 GB M.2 2280 PCIe Gen 4x4 NVMe SSD, OPAL 2.0 self-encrypting drive compliant.&rdquo;
+                    </blockquote>
+                    <div className="tr-verification-badge verified">
+                      <span className="tr-verified-icon"><IconCheck size={16} /></span>
+                      <div>
+                        <strong>Supported by Evidence · Model & Spec Confirmed</strong>
+                        <small>Nemotron cross-check: 512 GB threshold met · Opal 2.0 supported</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'amendment' && (
+                <div className="tr-view-amendment">
+                  <div className="tr-amendment-alert">
+                    <span className="tr-alert-icon"><IconAlertTriangle size={18} /></span>
+                    <div>
+                      <strong>Addendum #2 Modification Detected</strong>
+                      <p>Issued 48 hours prior to tender submission. Minimum memory threshold revised.</p>
+                    </div>
+                  </div>
+
+                  <div className="tr-comparison-grid">
+                    <div className="tr-clause-box original">
+                      <div className="tr-box-header">
+                        <span className="tr-box-tag">ORIGINAL SPEC (§4.3)</span>
+                        <span className="tr-box-source">Tender_v1.pdf</span>
+                      </div>
+                      <p className="tr-clause-text">&ldquo;RAM: 16 GB DDR5 unified memory.&rdquo;</p>
+                      <span className="tr-status-tag passed">Was Verified (16 GB)</span>
+                    </div>
+
+                    <div className="tr-clause-box modified">
+                      <div className="tr-box-header">
+                        <span className="tr-box-tag alert">ADDENDUM #2 REVISION</span>
+                        <span className="tr-box-source">Addendum_02.pdf · Clause 1.4</span>
+                      </div>
+                      <p className="tr-clause-text">&ldquo;RAM requirement is amended to: Minimum 32 GB DDR5.&rdquo;</p>
+                      <span className="tr-status-tag failed">Discrepancy: Supplier PDF shows 16 GB</span>
+                    </div>
+                  </div>
+
+                  <div className="tr-action-footer">
+                    <span className="tr-action-hint">
+                      <IconClock size={15} /> Corrective Action Assigned: Request 32 GB configuration bulletin from OEM.
+                    </span>
+                    <span className="tr-action-pill">Needs Human Sign-Off</span>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'signoff' && (
+                <div className="tr-view-signoff">
+                  <div className="tr-dossier-summary">
+                    <div className="tr-dossier-stat">
+                      <span className="tr-stat-label">Readiness Index</span>
+                      <strong className="tr-stat-value">95.8%</strong>
+                      <span className="tr-stat-note">23 of 24 Clauses Fully Evidenced</span>
+                    </div>
+                    <div className="tr-dossier-stat">
+                      <span className="tr-stat-label">Audit Integrity</span>
+                      <strong className="tr-stat-value verified">SHA-256</strong>
+                      <span className="tr-stat-note">Immutable Provenance Log</span>
+                    </div>
+                    <div className="tr-dossier-stat">
+                      <span className="tr-stat-label">Reviewers</span>
+                      <strong className="tr-stat-value">2 Officers</strong>
+                      <span className="tr-stat-note">Legal & Technical Lead Sign-off</span>
+                    </div>
+                  </div>
+
+                  <div className="tr-dossier-actions">
+                    <div className="tr-dossier-text">
+                      <strong>Export Source-Linked Tender Evidence Pack</strong>
+                      <p>Generates an annotated PDF compilation linking every tender clause directly to supplier document pages with digital verification signatures.</p>
+                    </div>
+                    <a href="#workspace-start" className="tr-button tr-primary tr-compact-btn">
+                      Generate Dossier <IconArrowRight size={14} />
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Workbench Footer Bar */}
+            <div className="tr-workbench-footer">
+              <span className="tr-footer-item">
+                <IconLock size={13} /> End-to-End Coordinate Traceability
               </span>
-              <div>
-                <strong>Evidence Cross-Validation</strong>
-                <small>Direct page citations for every finding</small>
-              </div>
+              <span className="tr-footer-sep">·</span>
+              <span className="tr-footer-item">
+                <IconFiles size={13} /> Original & Addendum Version Diffing
+              </span>
+              <span className="tr-footer-sep">·</span>
+              <span className="tr-footer-item">
+                <IconShieldCheck size={13} /> Human Governance Standard
+              </span>
             </div>
           </div>
         </div>
