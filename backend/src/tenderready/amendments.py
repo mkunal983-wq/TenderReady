@@ -18,7 +18,7 @@ from .models import (Workspace, DocumentVersion, SourceSpan, RequirementVersion,
     ReviewDecision, ReassessmentImpact, CorrectiveTask)
 from .documents import require_document
 from .verification import (Strict, Criterion, VerifyInput, propose, normalize, typed, verify,
-    assessment_view, record_dependencies)
+    assessment_view, record_dependencies, threshold_sentence)
 
 
 class SnapshotInput(Strict):
@@ -97,11 +97,13 @@ def safe_grammar(req):
 
 
 def equivalent(old, new):
-    if old.category != new.category or old.obligation != new.obligation:
+    old_sentence, new_sentence = threshold_sentence(old), threshold_sentence(new)
+    same_sentence = old_sentence and new_sentence and old_sentence['key'] == new_sentence['key']
+    if old.obligation != new.obligation or (old.category != new.category and not same_sentence):
         return False
     if normalize(old.statement) == normalize(new.statement):
         return True
-    return safe_grammar(old) and safe_grammar(new) and attributes(old) == attributes(new)
+    return bool((same_sentence or (safe_grammar(old) and safe_grammar(new))) and attributes(old) == attributes(new))
 
 
 def source_view(db, req, span_id=None, excerpt=None):
@@ -221,6 +223,20 @@ def compare(db, wid, did, payload):
         if len(choices)>1: raise HTTPException(422, 'Ambiguous match; supply an explicit one-to-one reviewer mapping.')
         if choices:
             matched[nid]=choices[0]; used.add(choices[0]); methods[nid]=method
+    # Resolve bounded free-text threshold changes as a bipartite match. Check
+    # uniqueness on BOTH sides before assigning anything; iteration order must
+    # never decide which duplicate clause owns an earlier approval.
+    old_sentences = {oid: threshold_sentence(r) for oid, r in old.items()}
+    new_sentences = {nid: threshold_sentence(r) for nid, r in new.items()}
+    for nid, sentence in new_sentences.items():
+        if nid in matched or sentence is None:
+            continue
+        choices = [oid for oid, prior in old_sentences.items() if prior and prior['key'] == sentence['key']]
+        competitors = [key for key, other in new_sentences.items() if other and other['key'] == sentence['key']]
+        if choices and (len(choices) != 1 or len(competitors) != 1 or choices[0] in used):
+            raise HTTPException(422, 'Ambiguous threshold clauses; supply an explicit one-to-one reviewer mapping.')
+        if choices:
+            matched[nid] = choices[0]; used.add(choices[0]); methods[nid] = 'source_grounded_threshold'
     explicit_removals = {}
     for removal in payload.removals:
         if removal.requirement_id not in old or removal.requirement_id in used or removal.requirement_id in explicit_removals:
@@ -266,7 +282,11 @@ def compare(db, wid, did, payload):
 
 def transfer_spec(old, new, prior):
     """Transfer only a complete, recognized grammar with identical check shape."""
-    if prior is None or old.category != new.category or old.obligation != new.obligation or not safe_grammar(old) or not safe_grammar(new): return None,None
+    old_sentence, new_sentence = threshold_sentence(old), threshold_sentence(new)
+    same_sentence = old_sentence and new_sentence and old_sentence['key'] == new_sentence['key']
+    if (prior is None or old.obligation != new.obligation or
+        (not same_sentence and (old.category != new.category or not safe_grammar(old) or not safe_grammar(new)))):
+        return None,None
     context = next((c for c in prior.checks if c.get('method')=='verification_context'), {})
     if prior.checks[0].get('method')=='human_correction' or not context.get('coverage_confirmed'): return None,None
     old_spec = context.get('criteria',[]); proposed = propose(new)
@@ -278,7 +298,8 @@ def transfer_spec(old, new, prior):
     for c in proposed:
         prior_c=lookup[c['field']]; original=old_proposed[c['field']]
         # Do not override a reviewer's different interpretation of an operator.
-        if prior_c['operator']!=original['operator'] or typed(c['field'],prior_c['expected'])!=typed(c['field'],original['expected']): return None,None
+        if (prior_c['operator']!=original['operator'] or prior_c['evidence_type']!=original['evidence_type'] or
+            typed(c['field'],prior_c['expected'])!=typed(c['field'],original['expected'])): return None,None
         updated.append({**c,'evidence_type':prior_c['evidence_type']})
         if c['operator']!=prior_c['operator'] or typed(c['field'],c['expected'])!=typed(c['field'],prior_c['expected']): changed.add(c['field'])
     if 'model' in changed: changed.update(c['field'] for c in updated); changed.add('product_scope')
@@ -339,7 +360,7 @@ def apply(db, wid, did, payload):
             spec,fields=transfer_spec(old,current,prior)
             reuse=prior if spec is not None and not assessment_view(db,prior)['stale'] else None
             if reuse is None: fields=None
-            # Unknown prose always receives an inconclusive full recheck; it
+            # Unrecognized prose receives an inconclusive full recheck; it
             # never inherits a completeness attestation from an earlier clause.
             result=verify(db,wid,current.id,VerifyInput(criteria=[Criterion(**c) for c in spec] if spec is not None else [],
                 coverage_confirmed=spec is not None, reviewer=f'Amendment propagation ({payload.reviewer})'),

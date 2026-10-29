@@ -211,6 +211,43 @@ def condition_criterion(req, condition, kind):
             'expected': value, 'quote': text, 'evidence_type': 'datasheet'}
 
 
+def threshold_sentence(req):
+    """Recognize a complete, single-condition sentence, not a similarity match.
+
+    The model condition must agree with independently parsed source wording.
+    The returned key masks only the capacity, preserving model, operator and
+    every other word. Unknown prose deliberately has no automatic identity.
+    """
+    condition = req.condition
+    if (getattr(req, 'obligation', None) != 'mandatory' or condition.get('confidence') != 'high'
+        or getattr(req, 'category', None) == 'manual_review'
+        or condition.get('date_conditions') or len(condition.get('numeric_conditions', [])) != 1
+        or condition.get('ambiguous') or condition.get('requires_human_review')
+        or any(re.search(r'\b(ambiguous|uncertain|uncertainty|unsupported|incomplete|conflicting|contradictory)\b', reason, re.I)
+               for reason in condition.get('review_reasons', []))):
+        return None
+    match = re.fullmatch(
+        r'The\s+(?:(?P<model>[A-Za-z0-9]+(?:[ -][A-Za-z0-9]+){0,7})\s+)?product\s+'
+        r'(?:must|shall)\s+have\s+(?P<comparison>at least|at most)\s+'
+        r'(?P<value>[0-9]+(?:\.[0-9]+)?)\s+GB\s+(?P<attribute>RAM|memory|storage|SSD)\.?',
+        req.statement.strip(), re.I)
+    if not match or re.search(r'\b(or|and|not|no|unless|except|if|equivalent)\b', req.statement, re.I):
+        return None
+    candidate = condition_criterion(req, condition['numeric_conditions'][0], 'numeric')
+    field = 'ram_gb' if match['attribute'].lower() in {'ram', 'memory'} else 'storage_gb'
+    operator = 'gte' if match['comparison'].lower() == 'at least' else 'lte'
+    if (candidate is None or candidate['field'] != field or candidate['operator'] != operator
+        or typed(field, candidate['expected']) != typed(field, match['value'])):
+        return None
+    criteria = [candidate]
+    if match['model']:
+        criteria.append({'field': 'model', 'operator': 'eq', 'expected': match['model'],
+                         'quote': match['model'], 'evidence_type': 'datasheet'})
+    statement = req.statement.strip()
+    key = normalize(statement[:match.start('value')] + '<capacity>' + statement[match.end('value'):]).rstrip('.')
+    return {'key': key, 'criteria': criteria}
+
+
 def propose(req):
     result = []
     # Suggestions only. Human coverage confirmation is still mandatory.
@@ -228,6 +265,11 @@ def propose(req):
             if candidate and not any(c['field'] == candidate['field'] and c['operator'] == candidate['operator']
                                      and c['expected'] == candidate['expected'] for c in result):
                 result.append(candidate)
+    sentence = threshold_sentence(req)
+    if sentence:
+        # This complete sentence supplies product identity as well as capacity.
+        # Full evidence coverage and final approval remain separate decisions.
+        return sentence['criteria']
     return result
 
 

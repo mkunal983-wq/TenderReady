@@ -149,7 +149,7 @@ export function DocumentWorkflow({ workspace, token, page, isSample = false }: {
       {documents.map(d => <option key={d.id} value={d.id}>{d.kind} v{d.version} · {d.filename}</option>)}
     </select></label>}
     {current && <>
-      <AmendmentWorkflow key={`amendment-${current.id}`} prefix={prefix} documentId={current.id} request={request} revision={libraryRevision} onChanged={() => { setLibraryRevision(v=>v+1); void refresh().catch(e=>setError(e.message)); }}/>
+      <AmendmentWorkflow key={`amendment-${current.id}`} prefix={prefix} documentId={current.id} request={request} revision={`${libraryRevision}-${current.analysis?.status}-${requirements.length}`} onChanged={() => { setLibraryRevision(v=>v+1); void refresh().catch(e=>setError(e.message)); }}/>
 
       <ManualRequirementEntry key={`transcription-${current.id}`} prefix={prefix} documentId={current.id} request={request} onSaved={() => { setLibraryRevision(v => v + 1); void refresh().catch(e => setError(e.message)); }}/>
       <div className="document-actions"><button className="secondary" onClick={() => void showSource()}>View source PDF</button>

@@ -133,6 +133,28 @@ Token Factory supplies requirement interpretation; the deterministic engine comp
 
 References: [Token Factory API](https://docs.tokenfactory.nebius.com/api-reference/introduction), [Nebius Nemotron cookbook](https://github.com/nebius/token-factory-cookbook/tree/main/models/nemotron).
 
+## Automatic source-backed capacity amendments
+
+Clear sentences such as `The Atlas A14 product must have at least 16 GB RAM.`
+can now match the corresponding `32 GB` clause automatically. This bounded
+parser accepts a complete mandatory sentence (`must/shall have`, `at least/at
+most`, GB, RAM/memory/storage/SSD) with one grounded numeric condition. It masks
+only the capacity and preserves every other word, including product identity.
+Both sides must match uniquely. Similarity scores and model category labels do
+not decide this mapping.
+
+After the user previews and applies the amendment, the system transfers a
+previously confirmed complete check specification only when it agrees with the
+source and its shape is unchanged. Changed capacity checks rerun; valid
+unaffected checks are reused. Prior approvals are reopened with an append-only
+history entry, and new findings still await approval. Changed evidence forces a
+fresh check rather than reuse. Duplicate clauses, uncertainty, alternatives,
+negations, unrecognized units or extra conditions require review. This does not
+provide arbitrary-prose auto-approval. No schema migration is required.
+
+Regression coverage: `backend/tests/test_prose_amendments.py`. The amendment UI
+also refreshes candidate mappings after asynchronous extraction without a reload.
+
 ## Tests
 
 From `backend/`, with the virtual environment active:
@@ -153,7 +175,7 @@ npm run typecheck
 npm run build
 ```
 
-Latest local verification on 29 October 2026: **189 backend tests and 23 frontend tests passed**, lint/typechecking/build passed, and no Alembic schema drift. Provider transport mocks occur only in automated tests and are not live-inference evidence. The offline acceptance path uses actual PDF parsing, persistence, checks and exports. Existing upstream deprecation/Motion build warnings are non-blocking.
+Latest local verification on 29 October 2026: **212 backend tests and 24 frontend tests passed**, lint/typechecking/build passed, and the latest amendment change required no schema migration. Provider transport mocks occur only in automated tests and are not live-inference evidence. The offline acceptance path uses actual PDF parsing, persistence, checks and exports. Existing upstream deprecation/Motion build warnings are non-blocking.
 
 ## Configuration and boundaries
 
