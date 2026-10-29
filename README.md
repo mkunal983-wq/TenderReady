@@ -1,5 +1,7 @@
 # TenderReady
 
+[MIT License](LICENSE) · [Setup and running](#run-locally) · [Nebius and NVIDIA feedback](docs/feedback.md)
+
 **Amendment-aware procurement evidence review.**
 
 TenderReady connects tender requirements to supplier evidence, identifies which findings and approvals are affected by an amendment, and coordinates targeted reassessments with a preserved audit trail. Humans retain control over coverage confirmation and final review decisions.
@@ -132,6 +134,18 @@ It makes actual provider calls using a fresh synthetic tender, verifies the 32 G
 Token Factory supplies requirement interpretation; the deterministic engine compares grounded facts and propagates changes. The implementation uses model discovery and `POST /v1/chat/completions`, strict response/citation validation, bounded retries and safe failure states. Token usage, model identifier, timestamps and operation outcomes are persisted without secrets. No measured speedup or credit savings are claimed yet.
 
 References: [Token Factory API](https://docs.tokenfactory.nebius.com/api-reference/introduction), [Nebius Nemotron cookbook](https://github.com/nebius/token-factory-cookbook/tree/main/models/nemotron).
+
+### How Token Factory accelerated development
+
+Token Factory hosted the Nemotron inference used by our FastAPI backend, so we did not need to provision GPUs, download model weights or operate a model-serving stack. Its OpenAI-compatible API let us keep the provider integration in one server-side client and use the same application workflow for account-available Super and Ultra models. This reduced the infrastructure work needed to build and test requirement extraction, leaving development focused on citations, deterministic evidence checks and amendment history. This is a qualitative development benefit; we have not measured time savings, comparative model speed or cost savings.
+
+**Services used:** Nebius Token Factory for NVIDIA Nemotron inference. The frontend, application backend, database and private document storage run locally in the verified setup. We have not used Nebius AI Cloud GPU instances, Serverless Endpoints or Serverless Jobs in this MVP, and do not claim deployment or hands-on feedback for those services. No other NVIDIA runtime or agent framework is integrated.
+
+### Feedback on Nebius and NVIDIA
+
+The hosted API and model catalog supported real Super and Ultra extraction tests, and returned usage metadata that we persisted for traceability. One observed integration issue was Ultra returning a compound unit such as `GB RAM`; we added source-checked normalization and retained human review for ambiguous outputs. More task-specific structured-extraction examples and clearer per-model output-format guidance would help developers building evidence-sensitive applications.
+
+See [our detailed feedback](docs/feedback.md) for what worked, observed friction, suggested improvements and the limits of our evaluation. The [live verification notes](docs/live-verification.md) record the supporting tests.
 
 ## Automatic source-backed capacity amendments
 
