@@ -59,6 +59,16 @@ export function Landing() {
 
   return (
     <div className="tr-landing">
+      {/* Background Tech Texture & Aurora Mesh */}
+      <div className="tr-background-canvas" aria-hidden="true">
+        <div className="tr-orb tr-orb-1" />
+        <div className="tr-orb tr-orb-2" />
+        <div className="tr-orb tr-orb-3" />
+        <div className="tr-bg-grid-major" />
+        <div className="tr-bg-grid" />
+        <div className="tr-bg-dots" />
+      </div>
+
       {/* Top Navigation Bar */}
       <header className="tr-nav">
         <a className="tr-logo" href="/" aria-label="TenderReady home">
