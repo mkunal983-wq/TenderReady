@@ -1,0 +1,21 @@
+.macbook-hero { position:relative; margin:28px -32px; padding:6px 32px 28px; background:#0B0B0F; color:#fafafa; }
+.macbook-hero .macbook-intro { max-width:800px; margin:58px auto 0; text-align:center; }
+.macbook-hero .eyebrow { color:#94b69f; }
+.macbook-intro h1 { font-size:clamp(36px,5.1vw,62px); line-height:1.09; }
+.macbook-intro .macbook-description { max-width:590px; margin:0 auto; color:#aeb7b2; font-size:17px; line-height:1.7; }
+.macbook-cta { display:inline-flex; align-items:center; gap:26px; margin-top:26px; padding:14px 22px; border:1px solid #244e3c; border-radius:7px; background:#244e3c; color:#fff; text-decoration:none; font-size:14px; font-weight:600; }
+.macbook-cta:hover { background:#183d32; }
+.macbook-cta:focus-visible { outline:3px solid #679579; outline-offset:4px; }
+.macbook-intro .macbook-scroll-hint { margin:22px auto 0; font-size:11px; letter-spacing:.07em; color:#a3ada7; }
+.macbook-scroll-hint span { display:inline-block; margin-left:8px; }
+
+#workspace-start { scroll-margin-top:24px; }
+.macbook-hero { overflow:clip; }
+@media(max-width:700px) {
+  .macbook-hero { margin-inline:-20px; padding-inline:20px; }
+  .macbook-hero .macbook-intro { margin-top:38px; }
+  .macbook-intro .macbook-description { font-size:15px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .macbook-scroll-hint { visibility:hidden; }
+}

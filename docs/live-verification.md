@@ -1,0 +1,27 @@
+# Real Nebius / Nemotron verification
+
+Verified locally on 29 October 2026 with synthetic, non-private PDFs. This was a real provider run, not a mocked transport or the offline sample path.
+
+- Endpoint: `https://api.tokenfactory.nebius.com/v1`
+- Model: `nvidia/nemotron-3-super-120b-a12b`, confirmed in the authenticated account catalog.
+- Tender: `samples/phase1a-live/tender-32gb.pdf`, page 2: "The product must have at least 32 GB RAM."
+- Extracted condition: `>=`, value `32`, unit `GB`, mandatory, exact quotation and document/page reference persisted.
+- Supplier evidence: `samples/phase1a-live/datasheet-16gb.pdf`, page 1: `RAM: 16 GB`.
+- Deterministic outcome: **Conflict detected**. Required at least 32 GB; observed 16 GB.
+- Both successful model runs persisted model identifier, timestamps, outcomes, duration and usage. Calls recorded 1,196 / 206 and 1,174 / 1,061 input / output tokens respectively.
+- The existing Requirements UI displayed the requirement, page-2 PDF source and conflict rationale. The finding remains awaiting human review; the draft baseline was not automatically approved or published.
+
+Commands executed from `backend/` using the project virtual environment:
+
+```sh
+python -m tenderready.cli models
+python scripts/live_ram_acceptance.py
+python -m pytest -q
+python -m ruff check src tests scripts
+```
+
+Results: live acceptance exit 0; **183 backend tests passed** in 45.99 seconds with three upstream deprecation warnings; lint passed. No frontend source changes were required for this live run. Earlier frontend verification: 23 tests passed, lint, typecheck and production build passed.
+
+To reproduce, configure your own key privately with `python backend/scripts/configure_nebius_key.py`, verify your account's model catalog, restart the backend, and run the commands above. Inference consumes provider credits. Missing credentials produce a blocked status, never a fabricated successful run.
+
+This verifies the stated synthetic acceptance scenario, not arbitrary PDF accuracy or production readiness. Evidence parsing remains limited to explicit labelled facts. Product scope, ambiguous clauses, source authenticity and approvals still require human review. No keys, database copies, private uploads or account billing data are included in this repository.

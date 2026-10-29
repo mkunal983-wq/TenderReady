@@ -1,0 +1,1 @@
+"""TenderReady application foundation."""

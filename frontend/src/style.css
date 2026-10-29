@@ -1,0 +1,41 @@
+:root{font-family:'DM Sans',system-ui,sans-serif;color:#182e2b;background:#f4f6f2;font-synthesis:none}*{box-sizing:border-box}body{margin:0}main{max-width:1120px;margin:auto;padding:30px 32px}header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #d8e0d8;padding-bottom:25px}.brand{color:#183d32;font-size:24px;font-weight:700;text-decoration:none}.brand span{display:block;font-size:12px;font-weight:400;color:#60766b;margin-top:5px}.badge{font-size:12px;border:1px solid #becdc0;padding:8px 12px;border-radius:20px}.intro{max-width:740px;margin:60px 0 35px}.eyebrow{font-size:11px;font-weight:700;letter-spacing:2px;color:#4f7964}h1{font-size:clamp(36px,5vw,58px);line-height:1.08;letter-spacing:-2px;margin:16px 0 22px}.intro>p:last-child{font-size:17px;line-height:1.7;color:#5b6e63;max-width:590px}.status{font-size:13px;padding:14px 18px;background:#e5eee2;border:1px solid #cedbc9;border-radius:8px}details{margin:15px 0 25px;color:#536657;font-size:13px}details label{max-width:500px;margin-top:15px}details small{display:block;margin:10px 0}.grid{display:grid;grid-template-columns:1fr 1.2fr;gap:24px}.panel{background:white;border:1px solid #dce3da;border-radius:12px;padding:28px}h2{font-size:20px;margin:0 0 24px}label{font-size:13px;font-weight:600;display:block;margin-bottom:20px}input{font:inherit;font-weight:400;display:block;width:100%;padding:12px;margin-top:8px;border:1px solid #c5d1c7;border-radius:6px}input:focus{outline:2px solid #679579;outline-offset:2px}button{background:#244e3c;color:white;border:0;border-radius:6px;padding:13px 18px;font:inherit;font-size:13px;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.muted{color:#69796c;line-height:1.6;font-size:14px}.count{font-size:13px;color:#6b7f6d;margin-left:10px}ul{list-style:none;padding:0;margin:0}li{padding:16px 0;border-bottom:1px solid #e4e9e1}li:first-child{padding-top:0}li span,li small{display:block;color:#63745f;margin-top:7px}li small{font-size:11px}.error{padding:14px;background:#fff0ed;color:#9a342d;border-radius:6px}footer{font-size:11px;color:#71816f;margin-top:35px}@media(max-width:700px){main{padding:20px}.grid{grid-template-columns:1fr}.intro{margin-top:40px}.panel{padding:22px}.badge{font-size:10px}}
+.document-workflow{margin-top:24px}.upload-form{border-bottom:1px solid #dce3da;padding-bottom:24px}.document-select{margin-top:24px}select{display:block;width:100%;font:inherit;padding:12px;margin-top:8px;border:1px solid #c5d1c7;border-radius:6px;background:white}.document-actions{display:flex;gap:12px;flex-wrap:wrap}.secondary{background:#e5eee2;color:#244e3c}.source-link{background:none;padding:8px 0;color:#244e3c;text-decoration:underline;text-align:left}.requirement{border:1px solid #dce3da;border-radius:8px;padding:20px;margin-top:16px;overflow-wrap:anywhere}.requirement-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:11px}.requirement-meta span{background:#edf2e9;padding:5px 8px;border-radius:12px}.requirement-id{display:block;margin-top:12px;color:#63745f}.requirement p{line-height:1.65}.requirement blockquote{margin:12px 0;padding:12px 16px;border-left:3px solid #7b9977;background:#f5f7f3;white-space:pre-wrap;font-size:13px}.requirement strong{font-size:13px}.warning{padding:12px;background:#fff7e1;color:#795c18;font-size:13px;line-height:1.5;border-radius:6px}.source-view{margin-top:22px}.source-view a{color:#244e3c;display:inline-block;margin-right:15px}.source-view iframe{width:100%;height:650px;border:1px solid #dce3da;margin-top:15px}.document-workflow input[type=file]{font-size:13px}
+.pdf-page{margin-top:18px}.pdf-page canvas{display:block;max-width:100%;height:auto;border:1px solid #dce3da;margin-top:15px}.pdf-page .document-actions{align-items:center;font-size:13px}.pdf-page pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.6}
+
+.evidence-library,.verification { margin-top:24px; padding-top:20px; border-top:1px solid #d7dfd7; }
+.criteria-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+fieldset { border:1px solid #d7dfd7; border-radius:8px; margin:16px 0; padding:16px; }
+textarea { width:100%; box-sizing:border-box; min-height:85px; padding:12px; font:inherit; border:1px solid #bbcabb; border-radius:6px; }
+.checkbox-label { display:flex; align-items:flex-start; gap:10px; margin:16px 0; }
+.checkbox-label input { width:auto; margin-top:4px; }
+.assessment { padding:16px; margin:16px 0; border-left:4px solid #899889; background:#f5f7f2; overflow-wrap:anywhere; }
+.assessment-conflicting,.assessment-outdated { border-color:#a44a33; }
+.assessment-supported { border-color:#39734e; }
+.page-transcript { white-space:pre-wrap; max-height:300px; overflow:auto; padding:12px; background:#f5f7f2; }
+.preserve-lines { white-space:pre-line; }
+
+.amendment-workflow { margin-top:24px; padding-top:20px; border-top:2px solid #bacdbb; }
+.amendment-comparison { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:18px; }
+.amendment-comparison h5 { font-size:1rem; margin:16px 0 8px; }
+.amendment-modified,.amendment-removed { border-color:#a44a33; }
+.amendment-unchanged { border-color:#39734e; }
+
+.supplier-dashboard { border-top:1px solid #cbd5c8; border-bottom:1px solid #cbd5c8; margin:24px 0; padding:24px 0; }
+.readiness-counts { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin:20px 0; }
+.readiness-counts .assessment { margin:0; padding:16px; }
+.readiness-counts strong { display:block; font-size:1.8rem; }
+.readiness-counts span { display:block; margin-top:6px; font-size:.85rem; }
+.readiness-blockers li { padding:8px 0; }
+.readiness-rows li { padding:18px 0; }
+.requirement-detail { margin:20px 0; border:2px solid #748c71; }
+.version-timeline { padding-left:20px; }
+.version-timeline li { padding:14px 0; border-bottom:1px solid #dbe3d8; }
+.version-timeline time { display:block; font-size:.85rem; color:#586557; }
+
+.audit-changes { display:block; font-size:.85rem; margin-top:8px; overflow-wrap:anywhere; }
+
+.sample-start { margin-top: 1.25rem; padding: 1.25rem; border: 1px solid #d7e7e3; border-radius: 16px; background: #f4faf8; }
+.sample-start p { max-width: 80ch; line-height: 1.6; }
+.sample-guide { margin-bottom: 1.25rem; border-color: #d7e7e3; background: #f4faf8; }
+.sample-guide summary { cursor: pointer; font-weight: 650; color: #086456; }
+.sample-guide li { margin: .6rem 0; line-height: 1.6; }

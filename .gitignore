@@ -1,0 +1,26 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Local state and private document storage
+*.db
+*.db-*
+*.sqlite*
+data/
+# Build and dependency directories
+.venv/
+node_modules/
+dist/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+# Local audit exports and output logs
+*-results.json
+*-report.json
+*.csv
+*.log
