@@ -66,6 +66,27 @@ def test_readiness_requires_current_approved_evidence_and_published_snapshot(dat
         assert c.post(base+f'/assessments/{a["id"]}/reviews',json=decision).status_code==409
 
 
+def test_automatic_support_is_distinct_from_final_approval_and_export_readiness(database,tmp_path):
+    engine,sessions=database
+    with TestClient(base_url='http://127.0.0.1:8000',app=create_app(config(tmp_path),engine),client=('127.0.0.1',1)) as client:
+        wid,rid,assessment=make_mandatory(client,sessions)
+        base=f'/workspaces/{wid}'
+        data=client.get(base+'/dashboard').json()
+        row=next(r for r in data['requirements'] if r['requirement_id']==rid)
+        assert row['status']=='supported' and row['assessment']['review_state']=='awaiting_review'
+        assert row['unresolved'] and row['blocking'] and not data['review_complete']
+        for kind in ['compliance-matrix','evidence-index']:
+            rows=list(csv.DictReader(io.StringIO(client.get(base+'/exports/'+kind).text.lstrip('\ufeff'))))
+            assert rows[0]['unresolved']=='True'
+            assert all(r['unresolved']=='True' for r in rows[1:]) and rows[1:]
+            if kind=='compliance-matrix':
+                assert rows[1]['review']=='awaiting_review' and rows[1]['status']=='Supported by evidence'
+        client.post(base+f'/assessments/{assessment["id"]}/reviews',json={
+            'action':'rejected','reviewer':'QA reviewer','comment':'Check the original evidence again.'})
+        row=client.get(base+f'/requirements/{rid}/detail').json()
+        assert row['status']=='inconclusive' and row['unresolved']
+
+
 def test_amendment_dashboard_history_and_csv_use_only_active_requirements(database,tmp_path):
     engine,_=database
     with TestClient(base_url="http://127.0.0.1:8000", app=create_app(config(tmp_path),engine),client=('127.0.0.1',1)) as c:
@@ -154,12 +175,13 @@ def test_empty_workspace_and_unknown_workspace(database,tmp_path):
         assert c.get(f'/workspaces/{uuid4()}/dashboard').status_code==404
 
 
-def test_optional_issue_is_disclosed_without_claiming_it_is_supported(database,tmp_path):
+def test_optional_automatic_match_still_discloses_pending_approval(database,tmp_path):
     engine,sessions=database
     with TestClient(base_url="http://127.0.0.1:8000", app=create_app(config(tmp_path),engine),client=('127.0.0.1',1)) as c:
         wid,_,_=make_mandatory(c,sessions,obligation="optional")
         data=c.get(f'/workspaces/{wid}/dashboard').json()
-        assert not data['review_complete'] and data['counts']['inconclusive']==1
+        assert not data['review_complete'] and data['counts']['supported']==1
+        assert data['requirements'][0]['assessment']['review_state']=='awaiting_review'
         assert data['requirements'][0]['unresolved'] and not data['requirements'][0]['blocking']
 
 
@@ -175,3 +197,16 @@ def test_open_task_blocks_mandatory_review_completion_until_resolved(database,tm
         assert c.get(base+'/dashboard').json()['review_complete']
         creation=next(e for e in c.get(base+'/timeline?limit=100').json()['items'] if e['kind']=='task')
         assert creation['description']==TASK['title']  # Earlier history does not acquire the edited title.
+
+
+def test_missing_partial_check_keeps_unresolved_interpretation_visible():
+    from tenderready.supplier import effective_status
+    finding={'status':'missing','stale':False,'review_state':'awaiting_review',
+        'explanation':'No CPU datasheet', 'checks':[{'method':'verification_context',
+        'check_plan':{'coverage':'partial'},'automatic_coverage':False}]}
+    status,reasons=effective_status(finding,'mandatory')
+    assert status=='inconclusive'
+    assert any('other parts' in reason for reason in reasons)
+    assert finding['status']=='missing'
+    finding['checks'][0]['check_plan']['coverage']='complete'
+    assert effective_status(finding,'mandatory')[0]=='missing'

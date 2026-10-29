@@ -35,16 +35,16 @@ export default function PdfSource({ url }: { url: string }) {
           setLoading(false);
         }
       } catch {
-        if (active) { setError('Could not render this page. Use the source document link to download it.'); setLoading(false); }
+        if (active) { setError('Could not show this page. Please close the PDF and open it again.'); setLoading(false); }
       }
     })();
     return () => { active = false; rendering?.cancel(); void task.destroy(); };
   }, [url, page]);
   return <div className="pdf-page">
     <div className="document-actions"><button className="secondary" disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}>Previous page</button><span role="status">Page {page}{count ? ` of ${count}` : ''}</span><button className="secondary" disabled={!count || page >= count || loading} onClick={() => setPage(p => p + 1)}>Next page</button></div>
-    {loading && <p role="status">Rendering source page…</p>}
+    {loading && <p role="status">Loading PDF page…</p>}
     {error && <p className="error" role="alert">{error}</p>}
     <canvas ref={canvas} aria-label={`Source PDF page ${page}`} />
-    {pageText && <details><summary>Accessible page text</summary><pre>{pageText}</pre></details>}
+    {pageText && <details><summary>Read page text</summary><pre>{pageText}</pre></details>}
   </div>;
 }

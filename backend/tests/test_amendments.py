@@ -62,8 +62,13 @@ def test_ram_amendment_reopens_only_affected_approval(database,tmp_path):
         assert impact['old_assessment']['requires_reassessment']
         assert impact['new_assessment']['status']=='conflicting'
         checks=impact['new_assessment']['checks']
-        assert [(c['field'],c['outcome']) for c in checks if c.get('execution')=='executed']==[('ram_gb','conflict')]
+        assert {(c['field'],c['outcome']) for c in checks if c.get('execution')=='executed'}=={('ram_gb','conflict'),('coverage','pass')}
         assert {c['field'] for c in checks if c.get('execution')=='reused'}=={'model','product_scope'}
+        original_checks = impact['old_assessment']['checks']
+        for reused in (c for c in checks if c.get('execution') == 'reused'):
+            original_check = next(c for c in original_checks if c.get('field') == reused['field'])
+            assert {k: v for k, v in reused.items() if k not in {'execution', 'reused_from_assessment_id'}} == {
+                k: v for k, v in original_check.items() if k != 'execution'}
         assert impact['approval_ids']
         assert changed['before']['page']==1 and changed['after']['page']==1
         assert changed['before']['stable_id']==changed['after']['stable_id'] and changed['after']['version']==2

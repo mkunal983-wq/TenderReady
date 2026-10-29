@@ -1,27 +1,129 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SupplierDashboard, filterRequirements, type RequirementRow } from './SupplierDashboard';
 import { RequirementVerification } from './EvidenceWorkflow';
-const ram:RequirementRow={requirement_id:'ram',stable_id:'ram-stable',clause_id:'RAM-01',version:2,text:'RAM: at least 32 GB',filename:'corrigendum.pdf',document_id:'doc',page:1,category:'numeric_threshold',obligation:'mandatory',status:'conflicting',label:'Conflict detected',reasons:['16 GB is below the required 32 GB.'],unresolved:true,blocking:true,assessment:{id:'assessment',review_state:'awaiting_review',explanation:'RAM too low'}};
-const ssd:RequirementRow={...ram,requirement_id:'ssd',stable_id:'ssd-stable',clause_id:'SSD-01',text:'Storage: at least 512 GB',category:'product_identity',status:'supported',label:'Supported by evidence',unresolved:false,blocking:false};
+vi.mock('./PdfSource',()=>({default:({url}:{url:string})=><div data-testid="pdf-source">{url}</div>}));
+const ram:RequirementRow={requirement_id:'ram',stable_id:'ram-stable',clause_id:'RAM-01',version:2,text:'RAM: at least 32 GB',filename:'corrigendum.pdf',document_id:'doc',page:1,category:'numeric_threshold',obligation:'mandatory',status:'conflicting',label:'Details do not match',reasons:['16 GB is below the required 32 GB.'],unresolved:true,blocking:true,assessment:{id:'assessment',review_state:'awaiting_review',explanation:'RAM too low'}};
+const ssd:RequirementRow={...ram,requirement_id:'ssd',stable_id:'ssd-stable',clause_id:'SSD-01',text:'Storage: at least 512 GB',category:'product_identity',status:'supported',label:'Supported by evidence',unresolved:false,blocking:false,assessment:{id:'ssd-assessment',review_state:'approved',explanation:'Storage meets the required value.'}};
 const data={review_complete:false,notice:'Evidence review only. No legal eligibility or award guarantee.',blockers:['Mandatory RAM requirement remains unresolved.'],counts:{supported:1,conflicting:1,missing:0,outdated:0,inconclusive:0},requirements:[ram,ssd],tasks:[],snapshot_sequence:2};
 const response=(body:unknown)=>new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}});
 const noop=()=>{};
-const assessment={id:'assessment',label:'Conflict detected',status:'conflicting',stale:false,review_state:'awaiting_review',explanation:'RAM too low',created_at:'2026-10-26T10:00:00+00:00',checks:[{method:'deterministic',field:'ram_gb',outcome:'conflict',rationale:'16 GB is below 32 GB.',sources:[{fact_id:'fact',filename:'datasheet.pdf',page:2,quote:'RAM: 16 GB',document_version_id:'evidence',raw_value:'16 GB'}]}],reviews:[],tasks:[]};
+const assessment={id:'assessment',label:'Details do not match',status:'conflicting',stale:false,review_state:'awaiting_review',explanation:'RAM too low',created_at:'2026-10-26T10:00:00+00:00',checks:[{method:'deterministic',field:'ram_gb',outcome:'conflict',rationale:'16 GB is below 32 GB.',sources:[{fact_id:'fact',filename:'datasheet.pdf',page:2,quote:'RAM: 16 GB',document_version_id:'evidence',raw_value:'16 GB'}]}],reviews:[],tasks:[]};
+beforeEach(()=>{
+  Object.defineProperty(HTMLDialogElement.prototype,'showModal',{configurable:true,value:function(this:HTMLDialogElement){this.setAttribute('open','');}});
+  Object.defineProperty(HTMLDialogElement.prototype,'close',{configurable:true,value:function(this:HTMLDialogElement){this.removeAttribute('open');}});
+});
 afterEach(()=>vi.restoreAllMocks());
 
 describe('supplier dashboard',()=>{
+  it('shows unassessed requirements separately from uncertain findings and links dashboard cards',async()=>{
+    const unchecked={...ram,requirement_id:'new',clause_id:'NEW-01',status:'not_checked',assessment:null};
+    const uncertain={...ssd,status:'inconclusive'};
+    const request=vi.fn(async()=>response({...data,requirements:[unchecked,uncertain],counts:{not_checked:1,inconclusive:1}}));
+    const {rerender}=render(<SupplierDashboard page="readiness" workspaceId="w" prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
+    expect(await screen.findByRole('link',{name:'View not checked requirements (1)'})).toHaveAttribute('href','#/workspaces/w/requirements?status=not_checked');
+    expect(screen.getByRole('link',{name:'View needs review requirements (1)'})).toHaveAttribute('href','#/workspaces/w/requirements?status=inconclusive');
+    rerender(<SupplierDashboard page="requirements" initialStatus="not_checked" workspaceId="w" prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
+    expect(screen.getByRole('button',{name:'Review requirement NEW-01'})).toBeVisible();
+    expect(screen.queryByRole('button',{name:'Review requirement SSD-01'})).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button',{name:'Needs review (1)'}));
+    expect(screen.getByRole('button',{name:'Review requirement SSD-01'})).toBeVisible();
+    expect(screen.queryByRole('button',{name:'Review requirement NEW-01'})).not.toBeInTheDocument();
+  });
+  it('shows supported evidence separately from pending approval while readiness stays blocked',async()=>{
+    const pending={...ssd,unresolved:true,blocking:true,assessment:{id:'ssd-assessment',review_state:'awaiting_review',explanation:'Storage meets the required value.'}};
+    const request=vi.fn(async(path:string)=>response(path.endsWith('/dashboard')?{...data,requirements:[pending],counts:{supported:1},blockers:['1 required item still needs approval.']}:path.endsWith('/detail')?pending:{suggested_criteria:[],assessments:[]}));
+    render(<SupplierDashboard page="requirements" prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
+    const review=await screen.findByRole('button',{name:'Review requirement SSD-01'});
+    expect(screen.getByText('Approval pending')).toBeVisible();
+    expect(screen.getByText('Action required')).toBeVisible();
+    expect(screen.queryByText('Evidence review complete')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button',{name:'Supported by evidence (1)'}));
+    expect(review).toBeVisible();
+    await userEvent.click(review);
+    const detail=await screen.findByRole('region',{name:'Requirement detail'});
+    expect(await within(detail).findByText('Approval pending.')).toBeVisible();
+    expect(detail).toHaveTextContent("The document checks passed, but this result still needs a reviewer's approval.");
+  });
+  it('opens review in a focused dialog before detail loads and returns focus on Escape',async()=>{
+    const request=vi.fn(async(path:string)=>path.endsWith('/detail')?new Promise<Response>(()=>{}):response(data));
+    render(<SupplierDashboard page="requirements" prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
+    const trigger=await screen.findByRole('button',{name:'Review requirement RAM-01'});
+    await userEvent.click(trigger);
+    const dialog=screen.getByRole('dialog',{name:'Requirement review'});
+    expect(dialog).toBeVisible();
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Loading requirement and past reviews');
+    expect(within(dialog).getByRole('button',{name:'Close requirement detail'})).toHaveFocus();
+    expect(document.body.style.overflow).toBe('hidden');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    expect(document.body.style.overflow).not.toBe('hidden');
+  });
+  it('runs all document checks once, reports partial results, and refreshes backend rows',async()=>{
+    let complete:(value:Response)=>void=()=>{};
+    let refreshed=false;
+    const request=vi.fn(async(path:string)=>{
+      if(path.endsWith('/verify-all'))return new Promise<Response>(resolve=>{complete=resolve;});
+      if(path.endsWith('/detail'))return response(ram);
+      return response(refreshed?{...data,counts:{not_checked:0,inconclusive:1,conflicting:1},requirements:[ram,{...ssd,status:'inconclusive'}]}:data);
+    });
+    const changed=vi.fn();
+    render(<SupplierDashboard page="requirements" prefix="/workspaces/w" request={request} revision="1" onChanged={changed}/>);
+    await screen.findByRole('button',{name:'Review requirement RAM-01'});
+    await userEvent.click(screen.getByRole('button',{name:'Check all documents'}));
+    expect(screen.getByRole('button',{name:'Checking documents…'})).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('No AI credits are used');
+    refreshed=true;
+    complete(response({total:3,checked:1,skipped:1,failed:1,provider_calls:0,results:[{requirement_id:'ssd',assessment_id:null,outcome:'failed',status:'not_checked',reason:'Source page is unavailable.'}]}));
+    expect(await screen.findByText('Document checks finished')).toBeVisible();
+    expect(screen.getByText('1 checked · 1 already up to date · 1 could not be checked · 3 total')).toBeVisible();
+    expect(screen.getByText(/Source page is unavailable/)).toBeVisible();
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Needs review (1)'})).toBeVisible());
+    expect(changed).toHaveBeenCalledTimes(1);
+    const calls=request.mock.calls.filter(([path])=>path.endsWith('/verify-all'));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual(['/workspaces/w/verify-all',expect.objectContaining({method:'POST',body:'{}',signal:expect.any(AbortSignal)})]);
+  });
+  it('does not carry an in-flight bulk result into another workspace',async()=>{
+    let complete:(value:Response)=>void=()=>{};
+    let signal:AbortSignal|undefined;
+    const request=vi.fn(async(path:string,init?:RequestInit)=>{
+      if(path.endsWith('/verify-all')){signal=init?.signal as AbortSignal;return new Promise<Response>(resolve=>{complete=resolve;});}
+      return response(data);
+    });
+    const changed=vi.fn();
+    const {rerender}=render(<SupplierDashboard page="requirements" prefix="/workspaces/first" request={request} revision="1" onChanged={changed}/>);
+    await screen.findByRole('button',{name:'Review requirement RAM-01'});
+    await userEvent.click(screen.getByRole('button',{name:'Check all documents'}));
+    rerender(<SupplierDashboard page="requirements" prefix="/workspaces/second" request={request} revision="1" onChanged={changed}/>);
+    expect(signal?.aborted).toBe(true);
+    complete(response({total:2,checked:2,skipped:0,failed:0,provider_calls:0,results:[]}));
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Check all documents'})).toBeEnabled());
+    expect(screen.queryByText('Document checks finished')).not.toBeInTheDocument();
+    expect(changed).not.toHaveBeenCalled();
+  });
+  it('does not show bulk success on API failure and allows retry after refreshing',async()=>{
+    const request=vi.fn(async(path:string)=>{if(path.endsWith('/verify-all'))throw new Error('Access denied');return response(data);});
+    render(<SupplierDashboard page="requirements" prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
+    await screen.findByRole('button',{name:'Review requirement RAM-01'});
+    await userEvent.click(screen.getByRole('button',{name:'Check all documents'}));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Access denied');
+    expect(screen.queryByText('Document checks finished')).not.toBeInTheDocument();
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Check all documents'})).toBeEnabled());
+    expect(request.mock.calls.filter(([path])=>path.endsWith('/dashboard'))).toHaveLength(2);
+  });
   it('filters by both status and category without changing global counts or blockers',async()=>{
     const request=vi.fn(async()=>response(data));
     render(<SupplierDashboard prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
-    expect(screen.getByRole('status')).toHaveTextContent('Loading current evidence');
+    expect(screen.getByRole('status')).toHaveTextContent('Loading documents and reviews');
     await screen.findByText('Mandatory RAM requirement remains unresolved.');
-    await userEvent.selectOptions(screen.getByLabelText('Filter by evidence status'),'supported');
+    await userEvent.selectOptions(screen.getByLabelText('Status'),'supported');
     expect(screen.queryByRole('button',{name:'Review requirement RAM-01'})).not.toBeInTheDocument();
     expect(screen.getByRole('button',{name:'Review requirement SSD-01'})).toBeInTheDocument();
     expect(screen.getByText('Action required')).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText('Filter by requirement category'),'numeric_threshold');
+    await userEvent.selectOptions(screen.getByLabelText('Category'),'numeric_threshold');
     expect(screen.getByText(/No requirements match/)).toBeInTheDocument();
     expect(filterRequirements([ram,ssd],'conflicting','numeric_threshold')).toEqual([ram]);
   });
@@ -33,7 +135,7 @@ describe('supplier dashboard',()=>{
     expect(screen.queryByRole('button',{name:'Review requirement RAM-01'})).not.toBeInTheDocument();
     expect(screen.getByRole('button',{name:'Review requirement SSD-01'})).toBeVisible();
     await userEvent.clear(screen.getByLabelText('Search requirements'));
-    await userEvent.click(screen.getByRole('button',{name:'Conflict detected (1)'}));
+    await userEvent.click(screen.getByRole('button',{name:'Details do not match (1)'}));
     expect(screen.queryByRole('button',{name:'Review requirement SSD-01'})).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button',{name:'All requirements (2)'}));
     await userEvent.selectOptions(screen.getByLabelText('Sort requirements'),'id');
@@ -45,15 +147,32 @@ describe('supplier dashboard',()=>{
     const request=vi.fn(async()=>response(data));
     const {rerender}=render(<SupplierDashboard page="requirements" workspaceId="w" prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
     await screen.findByRole('button',{name:'Review requirement RAM-01'});
-    expect(screen.queryByRole('button',{name:'Export compliance matrix CSV'})).not.toBeInTheDocument();
-    expect(screen.queryByText('Corrective tasks')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'Download requirements checklist (CSV)'})).not.toBeInTheDocument();
+    expect(screen.queryByText('Tasks to fix issues')).not.toBeInTheDocument();
     rerender(<SupplierDashboard page="tasks" workspaceId="w" prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
-    expect(screen.getByText('Corrective tasks')).toBeVisible();
+    expect(screen.getByText('Tasks to fix issues')).toBeVisible();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     rerender(<SupplierDashboard page="export" workspaceId="w" prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
-    expect(screen.getByRole('button',{name:'Export compliance matrix CSV'})).toBeVisible();
-    expect(screen.queryByText('Corrective tasks')).not.toBeInTheDocument();
-    expect(screen.getByRole('link',{name:'Upload amendment'})).toHaveAttribute('href','#/workspaces/w/amendments');
+    expect(screen.getByRole('button',{name:'Download requirements checklist (CSV)'})).toBeVisible();
+    expect(screen.queryByText('Tasks to fix issues')).not.toBeInTheDocument();
+    expect(screen.getByRole('link',{name:'Upload tender update'})).toHaveAttribute('href','#/workspaces/w/amendments');
+  });
+  it('keeps configurations searchable and opens their exact context page in requirement detail',async()=>{
+    const source_context=[{text:'Laptop (Configuration B)',page:2,source_document_id:'original',source_url:'/workspaces/w/documents/original/file#page=2'}];
+    const scoped={...ram,source_context};
+    const request=vi.fn(async(path:string)=>path.endsWith('/file')?new Response('%PDF'):response(path.endsWith('/dashboard')?{...data,requirements:[scoped,ssd]}:path.endsWith('/detail')?scoped:{suggested_criteria:[],assessments:[]}));
+    Object.defineProperty(URL,'createObjectURL',{value:vi.fn(()=> 'blob:context'),configurable:true});
+    Object.defineProperty(URL,'revokeObjectURL',{value:vi.fn(),configurable:true});
+    render(<SupplierDashboard page="requirements" prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
+    expect(await screen.findByText('Laptop (Configuration B)')).toBeVisible();
+    await userEvent.type(screen.getByLabelText('Search requirements'),'Configuration B');
+    expect(screen.queryByRole('button',{name:'Review requirement SSD-01'})).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button',{name:'Review requirement RAM-01'}));
+    const detail=await screen.findByRole('region',{name:'Requirement detail'});
+    expect(await within(detail).findByText('Laptop (Configuration B)')).toBeVisible();
+    await userEvent.click(within(detail).getByRole('button',{name:'Heading · page 2'}));
+    await waitFor(()=>expect(within(detail).getByTestId('pdf-source')).toHaveTextContent('blob:context#page=2'));
+    expect(request).toHaveBeenCalledWith('/workspaces/w/documents/original/file',expect.objectContaining({signal:expect.any(AbortSignal)}));
   });
   it('keeps reviewer identity while verification refreshes the requirement detail',async()=>{
     const request=vi.fn(async(path:string)=>response(path.endsWith('/dashboard')?data:path.endsWith('/detail')?ram:path.endsWith('/verify')?assessment:{suggested_criteria:[],assessments:[assessment]}));
@@ -61,18 +180,37 @@ describe('supplier dashboard',()=>{
     await userEvent.click(await screen.findByRole('button',{name:'Review requirement RAM-01'}));
     const reviewer=await screen.findByLabelText('Reviewer name');
     await userEvent.type(reviewer,'Reviewer retained across refresh');
-    await userEvent.click(screen.getByRole('button',{name:'Run evidence verification'}));
+    await userEvent.click(screen.getByRole('button',{name:'Run document checks'}));
     await waitFor(()=>expect(request.mock.calls.some(([path])=>path.endsWith('/verify'))).toBe(true));
     await waitFor(()=>expect(screen.getByLabelText('Reviewer name')).toHaveValue('Reviewer retained across refresh'));
-    await userEvent.type(screen.getByLabelText('Review rationale'),'Evidence checked after refresh.');
-    expect(screen.getByRole('button',{name:'Approve finding'})).toBeEnabled();
+    await userEvent.type(screen.getByLabelText('Review comments'),'Evidence checked after refresh.');
+    expect(screen.getByRole('button',{name:'Approve result'})).toBeEnabled();
+  });
+  it('refreshes an open review after bulk checks finish without clearing the reviewer name',async()=>{
+    let complete:(value:Response)=>void=()=>{};
+    let checked=false;
+    const request=vi.fn(async(path:string)=>{
+      if(path.endsWith('/verify-all'))return new Promise<Response>(resolve=>{complete=resolve;});
+      return response(path.endsWith('/dashboard')?data:path.endsWith('/detail')?ram:{suggested_criteria:[],assessments:checked?[assessment]:[]});
+    });
+    render(<SupplierDashboard page="requirements" prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
+    await screen.findByRole('button',{name:'Review requirement RAM-01'});
+    await userEvent.click(screen.getByRole('button',{name:'Check all documents'}));
+    await userEvent.click(screen.getByRole('button',{name:'Review requirement RAM-01'}));
+    await userEvent.type(await screen.findByLabelText('Reviewer name'),'Review owner');
+    expect(screen.getByText('No checks run yet.')).toBeVisible();
+    checked=true;
+    complete(response({total:2,checked:2,skipped:0,failed:0,provider_calls:0,results:[]}));
+    await userEvent.click(await screen.findByText(/Validation details & source passages/));
+    expect(await screen.findByText('RAM: 16 GB')).toBeVisible();
+    expect(screen.getByLabelText('Reviewer name')).toHaveValue('Review owner');
   });
   it('shows errors rather than a successful or empty dashboard when loading fails',async()=>{
     const request=vi.fn().mockRejectedValueOnce(new Error('Access denied')).mockResolvedValue(response({...data,requirements:[],counts:{},tasks:[]}));
     render(<SupplierDashboard prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
     expect(await screen.findByRole('alert')).toHaveTextContent('Access denied');
     expect(screen.queryByText('Evidence review complete')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button',{name:'Refresh readiness'}));
+    await userEvent.click(screen.getByRole('button',{name:'Refresh results'}));
     expect(await screen.findByText(/No requirements yet/)).toBeInTheDocument();
   });
   it('loads exact clause and evidence checks from detail and verification endpoints',async()=>{
@@ -83,19 +221,19 @@ describe('supplier dashboard',()=>{
     expect(await within(detail).findByText('RAM: 16 GB')).toBeInTheDocument();
     expect(within(detail).getByRole('button',{name:'corrigendum.pdf · page 1'})).toBeInTheDocument();
     expect(within(detail).getByText('16 GB is below 32 GB.')).toBeInTheDocument();
-    expect(within(detail).getByRole('button',{name:/Evidence page 2/})).toBeInTheDocument();
+    expect(within(detail).getByRole('button',{name:/Document page 2/})).toBeInTheDocument();
   });
   it('saves task due date, linked assessment and reviewer comment through the API',async()=>{
     const request=vi.fn(async(path:string)=>response(path.endsWith('/dashboard')?data:path.endsWith('/detail')?ram:path.endsWith('/tasks')?{id:'task'}:{suggested_criteria:[],assessments:[assessment]}));
     const changed=vi.fn();render(<SupplierDashboard prefix="/workspaces/w" request={request} revision="1" onChanged={changed}/>);
     await userEvent.click(await screen.findByRole('button',{name:'Review requirement RAM-01'}));
-    await userEvent.click(await screen.findByText('Create a corrective task'));
+    await userEvent.click(await screen.findByText('Add a task'));
     await userEvent.type(screen.getByLabelText('Task title'),'Obtain 32 GB datasheet');
     await userEvent.type(screen.getByLabelText('Action to take'),'Request a matching model with 32 GB RAM and rerun checks.');
     fireEvent.change(screen.getByLabelText('Due date (optional)'),{target:{value:'2026-11-01'}});
-    await userEvent.type(screen.getByLabelText('Task reviewer'),'Supplier reviewer');
-    await userEvent.type(screen.getByLabelText('Task update comment'),'RAM discrepancy confirmed.');
-    await userEvent.click(screen.getByRole('button',{name:'Create corrective task'}));
+    await userEvent.type(screen.getByLabelText('Your name'),'Supplier reviewer');
+    await userEvent.type(screen.getByLabelText('Update notes'),'RAM discrepancy confirmed.');
+    await userEvent.click(screen.getByRole('button',{name:'Create task'}));
     await waitFor(()=>expect(changed).toHaveBeenCalled());
     const call=request.mock.calls.find(([path])=>path.endsWith('/tasks')) as unknown as [string,RequestInit];
     expect(JSON.parse(String(call[1].body))).toMatchObject({assessment_id:'assessment',due_date:'2026-11-01',reviewer:'Supplier reviewer',comment:'RAM discrepancy confirmed.'});
@@ -103,21 +241,21 @@ describe('supplier dashboard',()=>{
   it('downloads a protected CSV and surfaces export errors',async()=>{
     const create=vi.fn(()=> 'blob:csv');Object.defineProperty(URL,'createObjectURL',{value:create,configurable:true});Object.defineProperty(URL,'revokeObjectURL',{value:vi.fn(),configurable:true});
     const click=vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(()=>{});
-    const request=vi.fn(async(path:string)=>{if(path.endsWith('evidence-index'))throw new Error('Export unavailable');return path.endsWith('/dashboard')?response(data):new Response('status,unresolved\nConflict detected,True');});
+    const request=vi.fn(async(path:string)=>{if(path.endsWith('evidence-index'))throw new Error('Export unavailable');return path.endsWith('/dashboard')?response(data):new Response('status,unresolved\nDetails do not match,True');});
     render(<SupplierDashboard prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
-    await userEvent.click(await screen.findByRole('button',{name:'Export compliance matrix CSV'}));
+    await userEvent.click(await screen.findByRole('button',{name:'Download requirements checklist (CSV)'}));
     await waitFor(()=>expect(click).toHaveBeenCalled());expect(create).toHaveBeenCalled();
     expect(request).toHaveBeenCalledWith('/workspaces/w/exports/compliance-matrix');
-    await userEvent.click(screen.getByRole('button',{name:'Export evidence index CSV'}));
+    await userEvent.click(screen.getByRole('button',{name:'Download document list (CSV)'}));
     expect(await screen.findByRole('alert')).toHaveTextContent('Export unavailable');
   });
   it('loads saved version and approval timeline with timestamps',async()=>{
     const request=vi.fn(async(path:string)=>response(path.endsWith('/dashboard')?data:{total:1,items:[{id:'event',kind:'review',created_at:'2026-10-26T10:00:00+00:00',title:'Approved by Reviewer',description:'Confirmed SSD evidence.',requirement_id:'ssd'}]}));
     render(<SupplierDashboard prefix="/workspaces/w" request={request} revision="1" onChanged={noop}/>);
-    await userEvent.click(await screen.findByRole('button',{name:'Show timeline'}));
+    await userEvent.click(await screen.findByRole('button',{name:'Show history'}));
     expect(await screen.findByText('Approved by Reviewer')).toBeInTheDocument();
     expect(screen.getByText('Confirmed SSD evidence.')).toBeInTheDocument();
-    expect(screen.getByRole('button',{name:'View related requirement'})).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'View requirement'})).toBeInTheDocument();
   });
 });
 
@@ -126,12 +264,12 @@ it('approval failures remain errors; successful rejection submits reviewer ratio
   const request=vi.fn(async(path:string,init?:RequestInit)=>{if(path.endsWith('/reviews')){const payload=JSON.parse(String(init?.body));if(payload.action==='approved')throw new Error('Evidence changed; rerun verification.');return response({...assessment,review_state:'rejected'});}return response({suggested_criteria:[],assessments:[assessment]});});
   render(<RequirementVerification prefix="/workspaces/w" requirementId="ram" request={request} libraryRevision={0} initialOpen onChanged={changed}/>);
   await screen.findByText('RAM: 16 GB');
-  expect(screen.getByRole('button',{name:'Approve finding'})).toBeDisabled();
+  expect(screen.getByRole('button',{name:'Approve result'})).toBeDisabled();
   await userEvent.type(screen.getByLabelText('Reviewer name'),'Reviewer');
-  await userEvent.type(screen.getByLabelText('Review rationale'),'Evidence needs replacement.');
-  await userEvent.click(screen.getByRole('button',{name:'Approve finding'}));
+  await userEvent.type(screen.getByLabelText('Review comments'),'Evidence needs replacement.');
+  await userEvent.click(screen.getByRole('button',{name:'Approve result'}));
   expect(await screen.findByRole('alert')).toHaveTextContent('Evidence changed');expect(changed).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole('button',{name:'Reject finding'}));
+  await userEvent.click(screen.getByRole('button',{name:'Reject result'}));
   await waitFor(()=>expect(changed).toHaveBeenCalledTimes(1));
   const post=request.mock.calls.filter(([p])=>p.endsWith('/reviews')).at(-1)!;
   expect(JSON.parse(String(post[1]?.body))).toEqual({action:'rejected',reviewer:'Reviewer',comment:'Evidence needs replacement.'});

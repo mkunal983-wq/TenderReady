@@ -2,8 +2,7 @@
 import asyncio
 import hashlib
 import os
-import time
-from datetime import datetime, timezone
+import re
 from pathlib import Path
 import uuid
 from urllib.parse import unquote
@@ -13,8 +12,10 @@ from sqlalchemy import select, update
 from starlette.concurrency import run_in_threadpool
 
 from .models import (AnalysisRequirement, DocumentAnalysis, DocumentPage, DocumentVersion,
-                     ModelRun, ModelRunContext, RequirementVersion, SourceSpan, Workspace, EvidenceLibraryEntry)
-from .nebius import IntegrationError, NemotronClient, SourceInput
+                     RequirementVersion, SourceSpan, Workspace, EvidenceLibraryEntry)
+from .nebius import IntegrationError, NemotronClient
+from .extraction_batches import plan_batches
+from .extraction_cache import extract_checkpoint, source_context
 from .pdf_parse import PDFError, parse_isolated
 
 
@@ -27,6 +28,9 @@ def storage_path(settings, key: str) -> Path:
 
 
 def document_response(db, document):
+    from .models import TenderSnapshot
+    from .reconciliation import latest_reconciliation, audit_view
+    reconciliation = audit_view(latest_reconciliation(db, document.workspace_id, document.id), changes=False)
     analysis = db.scalar(select(DocumentAnalysis).where(DocumentAnalysis.document_version_id == document.id))
     page_numbers = db.scalars(select(DocumentPage.page).where(DocumentPage.document_version_id == document.id)).all()
     return {
@@ -34,12 +38,13 @@ def document_response(db, document):
         "kind": document.kind, "version": document.version, "document_key": document.document_key,
         "supersedes_id": document.supersedes_id,
         "page_count": len(page_numbers),
+        "published": db.scalar(select(TenderSnapshot.id).where(TenderSnapshot.workspace_id == document.workspace_id, TenderSnapshot.document_version_id == document.id)) is not None,
         "source_url": f"/workspaces/{document.workspace_id}/documents/{document.id}/file",
         "analysis": None if analysis is None else {
             "id": analysis.id, "status": analysis.status, "warnings": analysis.warnings,
             "error_code": analysis.error_code, "error_message": analysis.error_message,
             "pages_completed": analysis.pages_completed, "model": analysis.model,
-            "attempts": analysis.attempts,
+            "attempts": analysis.attempts, "reconciliation": reconciliation,
         },
     }
 
@@ -166,34 +171,13 @@ async def analyze_document(analysis_id: str, sessions, settings, client_factory=
         results, warnings, completed_pages = [], list(base_warnings), set()
         async with asyncio.timeout(settings.analysis_timeout_seconds):
             for index, span in enumerate(spans):
-                started_at = datetime.now(timezone.utc)
-                start = time.monotonic()
-                try:
-                    result = await client.extract_requirements([SourceInput(source_id=span.id, text=span.text)])
-                except (Exception, asyncio.CancelledError) as error:
-                    completed_at = datetime.now(timezone.utc)
-                    code = error.code if isinstance(error, IntegrationError) else 'interrupted' if isinstance(error, asyncio.CancelledError) else 'analysis_failed'
-                    with sessions.begin() as db:
-                        run = ModelRun(workspace_id=workspace_id, model=settings.nebius_model,
-                            operation='tender_requirement_extraction', duration_ms=round((time.monotonic()-start)*1000), outcome='failed')
-                        db.add(run); db.flush()
-                        db.add(ModelRunContext(workspace_id=workspace_id, model_run_id=run.id,
-                            analysis_id=analysis_id, source_span_id=span.id, started_at=started_at,
-                            completed_at=completed_at, attempts=None, error_code=code))
-                    raise
-                completed_at = datetime.now(timezone.utc)
-                # A successful provider call is recorded even if a later page fails;
-                # requirement publication remains all-or-nothing.
-                with sessions.begin() as db:
-                    run = ModelRun(workspace_id=workspace_id, model=result.usage.model,
-                        operation='tender_requirement_extraction', input_tokens=result.usage.input_tokens,
-                        output_tokens=result.usage.output_tokens, duration_ms=result.usage.duration_ms, outcome='succeeded')
-                    db.add(run); db.flush()
-                    db.add(ModelRunContext(workspace_id=workspace_id, model_run_id=run.id,
-                        analysis_id=analysis_id, source_span_id=span.id, started_at=started_at,
-                        completed_at=completed_at, attempts=result.usage.attempts))
-                results.append((span, result))
-                warnings.extend(result.batch.warnings)
+                for batch in plan_batches(span.text, settings.extraction_batch_max_chars):
+                    if not span.text[batch.start:batch.end].strip():
+                        continue
+                    result, run_id, _ = await extract_checkpoint(
+                        analysis_id, span, batch, sessions, settings, client)
+                    results.append((span, batch, result, run_id))
+                    warnings.extend(result.batch.warnings)
                 if index == len(spans) - 1 or spans[index + 1].page != span.page:
                     completed_pages.add(span.page)
                 with sessions.begin() as db:
@@ -204,17 +188,32 @@ async def analyze_document(analysis_id: str, sessions, settings, client_factory=
             if current.status != "running":
                 return
             seen = set()
-            for span, result in results:
+            # Column headings provide scope, not standalone supplier obligations.
+            table_headers = {(span.id, c.text.strip()) for span, batch, _, _ in results
+                             for c in batch.contexts if c.kind == 'table_header'}
+            for span, batch, result, run_id in results:
+                context = source_context(span,batch)
+                scoped = any(c['kind'] == 'product_scope' for c in context)
                 for extracted in result.batch.requirements:
-                    if (span.id, extracted.statement) in seen:
+                    if (span.id, extracted.statement.strip()) in table_headers:
+                        warnings.append(f'Page {span.page}: table heading retained as source context, not a standalone requirement.')
                         continue
-                    seen.add((span.id, extracted.statement))
+                    version_unit = any(re.search(r'\d', c.unit_text or '') for c in extracted.numeric_conditions)
+                    unresolved = any(reason.startswith('Unresolved model interpretation:') for reason in extracted.review_reasons)
+                    identity = (span.id, extracted.statement, tuple(c['text'] for c in context if c['kind'] == 'product_scope'))
+                    if identity in seen:
+                        continue
+                    seen.add(identity)
                     condition = {
                         "numeric_conditions": [c.model_dump() for c in extracted.numeric_conditions],
                         "date_conditions": [c.model_dump() for c in extracted.date_conditions],
                         "excerpt": extracted.citations[0].quote,
                         "provenance": "nemotron_extraction", "confidence": extracted.confidence, "review_status": "awaiting_review",
-                        "review_reasons": extracted.review_reasons,
+                        "review_reasons": list(dict.fromkeys(extracted.review_reasons + (
+                            ['Product configuration scope comes from the cited table heading; confirm applicability before evidence verification.'] if scoped else []) + (
+                            ['Numeric condition has a version-like unit; review its meaning before using it as a threshold.'] if version_unit else []))),
+                        "source_context": context, "requires_human_review": scoped or unresolved or version_unit,
+                        "model_run_id": run_id,
                         "obligation_quote": extracted.obligation_quote,
                     }
                     requirement = RequirementVersion(workspace_id=workspace_id, requirement_key=str(uuid.uuid4()),
@@ -229,6 +228,9 @@ async def analyze_document(analysis_id: str, sessions, settings, client_factory=
             current.model = settings.nebius_model
             current.warnings = list(dict.fromkeys(warnings))
             current.error_code = None; current.error_message = None
+            db.flush()
+            from .reconciliation import reconcile_document
+            reconcile_document(db, workspace_id, document_id, commit=False)
     except (IntegrationError, TimeoutError) as error:
         with sessions.begin() as db:
             record = db.get(DocumentAnalysis, analysis_id)
@@ -255,10 +257,8 @@ def requirements_response(db, workspace_id: str, document_id: str):
             SnapshotRequirement.requirement_version_id == RequirementVersion.id).join(SourceSpan,
             SourceSpan.id == SnapshotRequirement.source_span_id).where(SnapshotRequirement.snapshot_id == snapshot.id)).all()
     else:
-        rows = [(req,span,None) for req,span in db.execute(select(RequirementVersion, SourceSpan).join(SourceSpan,
-            RequirementVersion.source_span_id == SourceSpan.id).where(RequirementVersion.workspace_id == workspace_id,
-            SourceSpan.document_version_id == document_id).order_by(SourceSpan.page, SourceSpan.start_offset, RequirementVersion.created_at))
-            if not req.condition.get('canonicalized_from')]
+        from .requirement_selection import current_rows
+        rows = [(req, span, None) for req, span in current_rows(db, workspace_id, document_id)]
     def grounded_conditions(req, span, key):
         source_url = f"/workspaces/{workspace_id}/documents/{span.document_version_id}/file#page={span.page}"
         return [{**condition, "source_document_id": span.document_version_id, "page": span.page,
@@ -267,8 +267,11 @@ def requirements_response(db, workspace_id: str, document_id: str):
                 for condition in req.condition.get(key, [])]
     return [{"id": req.id, "requirement_id": req.requirement_key,
              "text": req.statement, "category": req.category, "obligation": req.obligation,
+             "version": req.version, "supersedes_id": req.supersedes_id,
              **req.condition, "numeric_conditions": grounded_conditions(req, span, 'numeric_conditions'),
              "date_conditions": grounded_conditions(req, span, 'date_conditions'),
+             "quantity_conditions": grounded_conditions(req, span, 'quantity_conditions'),
+             "temporal_conditions": grounded_conditions(req, span, 'temporal_conditions'),
              "excerpt": membership.source_excerpt if membership else req.condition.get('excerpt',req.statement),
              "source_document_id": span.document_version_id, "source_filename": db.get(DocumentVersion,span.document_version_id).filename,
              "page": span.page, "source_url": f"/workspaces/{workspace_id}/documents/{span.document_version_id}/file#page={span.page}"

@@ -267,6 +267,47 @@ class AnalysisRequirement(Scoped, Base):
     )
 
 
+class ExtractionBatchCache(Scoped, Base):
+    """Validated provider output, reusable only for identical source/configuration.
+
+    Checkpoints are not published requirements or approved findings. They avoid
+    paying again for completed batches when a later batch fails.
+    """
+    __tablename__ = "extraction_batch_cache"
+    analysis_id: Mapped[str] = mapped_column(String(36))
+    source_span_id: Mapped[str] = mapped_column(String(36))
+    model_run_id: Mapped[str] = mapped_column(String(36))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    result: Mapped[dict] = mapped_column(JSON)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "analysis_id", "fingerprint"),
+        scoped_fk("analysis_id", "document_analyses"),
+        scoped_fk("source_span_id", "source_spans"),
+        scoped_fk("model_run_id", "model_runs"),
+        CheckConstraint("length(fingerprint) = 64"),
+    )
+
+
+class ExtractionReconciliation(Scoped, Base):
+    """Append-only audit of source-grounded corrections, never an approval."""
+    __tablename__ = "extraction_reconciliations"
+    analysis_id: Mapped[str] = mapped_column(String(36))
+    document_version_id: Mapped[str] = mapped_column(String(36))
+    revision: Mapped[int] = mapped_column(Integer)
+    rules_version: Mapped[str] = mapped_column(String(100))
+    input_fingerprint: Mapped[str] = mapped_column(String(64))
+    output_fingerprint: Mapped[str] = mapped_column(String(64))
+    summary: Mapped[dict] = mapped_column(JSON)
+    changes: Mapped[list] = mapped_column(JSON)
+    __table_args__ = (
+        scoped_fk("analysis_id", "document_analyses"),
+        scoped_fk("document_version_id", "document_versions"),
+        UniqueConstraint("workspace_id", "document_version_id", "revision"),
+        CheckConstraint("revision >= 1"),
+        CheckConstraint("length(input_fingerprint) = 64 AND length(output_fingerprint) = 64"),
+    )
+
+
 class EvidenceLibraryEntry(Scoped, Base):
     __tablename__ = "evidence_library_entries"
     document_version_id: Mapped[str] = mapped_column(String(36), unique=True)
@@ -340,7 +381,7 @@ def prevent_mutation(*_):
 
 for immutable in (DocumentVersion, SourceSpan, RequirementVersion, EvidenceFact,
                   Assessment, AssessmentEvidence, ReviewDecision, ModelRun, ModelRunContext,
-                  DocumentPage, AnalysisRequirement, EvidenceLibraryEntry, TenderSnapshot, SnapshotRequirement,
+                  DocumentPage, AnalysisRequirement, ExtractionBatchCache, ExtractionReconciliation, EvidenceLibraryEntry, TenderSnapshot, SnapshotRequirement,
                   RequirementChange, AssessmentDependency, ReassessmentImpact, TaskEvent):
     event.listen(immutable, "before_update", prevent_mutation)
     event.listen(immutable, "before_delete", prevent_mutation)

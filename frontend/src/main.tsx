@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
+import { plainSystemText } from './plainLanguage';
 import './style.css';
 import './tailwind.css';
 import { WorkspaceHub } from './components/WorkspaceHub';
@@ -32,7 +33,7 @@ function App() {
     });
     if (!response.ok) {
       const body=await response.json().catch(()=>null);
-      throw new Error(response.status === 401 ? 'Enter the application access token and reconnect.' : body?.error?.message || `Request failed (${response.status}).`);
+      throw new Error(response.status === 401 ? 'Enter your app access key, then reconnect.' : plainSystemText(body?.error?.message || `Request failed (${response.status}).`));
     }
     return response.json();
   }, [token]);
@@ -42,10 +43,10 @@ function App() {
     try {
       const readiness = await request('/ready', { signal });
       if (signal?.aborted) return;
-      setStatus(readiness.inference === 'not_configured' ? 'Database ready · AI not configured' : 'Database ready · AI configured, not verified');
+      setStatus(readiness.inference === 'not_configured' ? 'App ready · AI setup needed' : 'App ready · AI key set; connection not checked');
       const rows = await request('/workspaces', { signal });
       if (!signal?.aborted) setWorkspaces(rows);
-    } catch (e) { if (!signal?.aborted) { setError(e instanceof Error ? e.message : 'Connection failed'); setStatus('Connection needs attention'); } }
+    } catch (e) { if (!signal?.aborted) { setError(e instanceof Error ? e.message : 'Connection failed'); setStatus('Could not connect'); } }
     finally { if (!signal?.aborted) setBusy(false); }
   }, [request]);
 
@@ -74,7 +75,7 @@ function App() {
       if (e instanceof SampleWorkflowError && e.workspace) {
         const workspace = e.workspace;
         setWorkspaces(rows => [workspace, ...rows.filter(w => w.id !== workspace.id)]);
-        setError(`${e.message} Partial sample workspace was preserved; open it to inspect or delete it.`);
+        setError(`${e.message} The sample workspace was saved, but setup stopped early. Open it to check what was saved, or delete it.`);
       } else setError(e instanceof Error ? e.message : 'Sample setup failed.');
     } finally { setBusy(false); setSampleProgress(''); }
   }
@@ -92,14 +93,14 @@ function App() {
     {!workspaceMode && location!=="#/workspaces" && <Landing />}
     <div className="app-connection" hidden={workspaceMode && !!selectedWorkspace}>
     <div className="status" role="status">{status}</div>
-    <details><summary>Application access</summary><label>Access token<input type="password" autoComplete="off" value={token} onChange={e => setToken(e.target.value)} placeholder="Only if configured on your server" /></label><button disabled={busy} onClick={() => void connect()}>Reconnect</button><small>This is the application token, never your Nebius API key. It stays in memory.</small></details>
+    <details><summary>App access</summary><label>App access key<input type="password" autoComplete="off" value={token} onChange={e => setToken(e.target.value)} placeholder="Only if your app asks for an access key" /></label><button disabled={busy} onClick={() => void connect()}>Reconnect</button><small>Use your app access key here, not your Nebius API key. This key is kept only while the app is open.</small></details>
     {error && <p className="error" role="alert">{error}</p>}
-    {!workspaceMode && <div className="sample-start"><strong>Try the complete sample workflow</strong><p>No provider key needed. Creates a separate synthetic workspace with real PDF uploads, a RAM amendment, preserved review history and an unresolved 32 GB versus 16 GB finding. All scripted reviews are marked as samples.</p><button className="secondary" disabled={busy || status==='Connecting…'} onClick={()=>void createSample()}>{sampleProgress || 'Create sample workspace'}</button>{sampleProgress && <p role="status">{sampleProgress}</p>}<p className="muted">Your own tenders use the real Nemotron integration. A missing provider key never triggers simulated AI output.</p></div>}
+    {!workspaceMode && <div className="sample-start"><strong>Try a sample tender</strong><p>No AI key needed. This creates a separate demo with sample PDFs. The tender changes from 16 GB to 32 GB RAM, so the old 16 GB document no longer meets it. Reviews are saved and clearly marked as sample reviews.</p><button className="secondary" disabled={busy || status==='Connecting…'} onClick={()=>void createSample()}>{sampleProgress || 'Create sample workspace'}</button>{sampleProgress && <p role="status">{sampleProgress}</p>}<p className="muted">Your own tenders use Nemotron AI. If the AI key is missing, extraction stops; sample results are never shown as real AI results.</p></div>}
     </div>
-    {!workspaceMode && <WorkspaceHub onRename={renameWorkspace} onDelete={deleteWorkspace} workspaces={workspaces} busy={busy || status==='Connecting…'} createForm={<form onSubmit={create}><label>Tender title<input required maxLength={200} value={title} onChange={e => setTitle(e.target.value)} placeholder="University laptop procurement"/></label><label>Supplier legal name<input required maxLength={200} value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="Your company name"/></label><button disabled={busy || !title.trim() || !supplier.trim()}>{busy ? 'Working…' : 'Create workspace →'}</button></form>}/>}
-    {workspaceMode && !selectedWorkspace && <section className="panel"><h2>{busy || status==='Connecting…' ? 'Loading workspace…' : 'Workspace unavailable'}</h2><p>{route ? 'Use application access above to reconnect, or choose a workspace you can access.' : 'This workspace page does not exist.'}</p><a href="#workspace-start">Back to workspaces</a></section>}
-    {selectedWorkspace && <DocumentWorkflow key={selectedWorkspace.id} workspace={selectedWorkspace} page={route!.page} token={token} isSample={selectedWorkspace.supplier_name===SAMPLE_SUPPLIER} />}
-    <footer>Built for source-linked evidence review. No compliance or eligibility guarantees.</footer>
+    {!workspaceMode && <WorkspaceHub onRename={renameWorkspace} onDelete={deleteWorkspace} workspaces={workspaces} busy={busy || status==='Connecting…'} createForm={<form onSubmit={create}><label>Tender title<input required maxLength={200} value={title} onChange={e => setTitle(e.target.value)} placeholder="Laptops for a university"/></label><label>Registered company name<input required maxLength={200} value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="Your company name"/></label><button disabled={busy || !title.trim() || !supplier.trim()}>{busy ? 'Working…' : 'Create workspace →'}</button></form>}/>}
+    {workspaceMode && !selectedWorkspace && <section className="panel"><h2>{busy || status==='Connecting…' ? 'Loading workspace…' : 'Workspace unavailable'}</h2><p>{route ? 'Use App access above to reconnect, or choose another workspace.' : 'This workspace page does not exist.'}</p><a href="#workspace-start">Back to workspaces</a></section>}
+    {selectedWorkspace && <DocumentWorkflow key={selectedWorkspace.id} workspace={selectedWorkspace} page={route!.page} initialStatus={route!.status} token={token} isSample={selectedWorkspace.supplier_name===SAMPLE_SUPPLIER} />}
+    <footer>Check evidence against the original documents. A completed review does not guarantee that your bid qualifies or wins.</footer>
   </main>;
 }
 

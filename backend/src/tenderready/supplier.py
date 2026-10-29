@@ -9,11 +9,14 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, update
 from . import amendments
+from .check_planning import build_check_plan
+from .clause_actions import interpretation_uncertain
 from .models import (Workspace, DocumentVersion, Assessment, CorrectiveTask,
-                     TaskEvent, ReviewDecision, RequirementChange, ReassessmentImpact, TenderSnapshot)
+                     SourceSpan, TaskEvent, ReviewDecision, RequirementChange, ReassessmentImpact, TenderSnapshot)
 from .verification import assessment_view, require_requirement, list_evidence, LABELS
 
 NOTICE = 'Evidence review only. This is not a guarantee of legal eligibility, bid acceptance, document authenticity, or contract award.'
+READINESS_LABELS = {'not_checked': 'Not checked', 'action_required': 'Task to complete', 'reference_only': 'Reference information', **LABELS}
 
 
 def timestamp(value):
@@ -30,17 +33,27 @@ def require_workspace(db, wid):
 def effective_status(assessment, obligation):
     reasons = []
     if assessment is None:
-        return 'inconclusive', ['No evidence assessment has been recorded.']
+        return 'not_checked', ['No evidence assessment has been recorded.']
     status = assessment['status']
+    context = next((c for c in assessment.get('checks', []) if c.get('method') == 'verification_context'), {})
+    if status == 'missing' and context.get('check_plan', {}).get('coverage') == 'partial':
+        status = 'inconclusive'
+        reasons.append('Evidence is missing for a prepared check, and other parts of this clause still need interpretation. Missing evidence does not resolve those parts.')
+    if assessment.get('dependency_changed'):
+        reasons.append('A linked component assessment, source version or reviewer decision changed. Reassess this combined clause; its previous history remains intact.')
     if assessment['stale']:
         reasons.append('Evidence, dates, or tender assumptions changed; rerun verification.')
     if assessment['review_state'] != 'approved':
         reasons.append('The current finding requires human approval; review state: ' + assessment['review_state'] + '.')
     if obligation == 'unclear':
         reasons.append('Mandatory or optional status is unclear; review the tender interpretation.')
-    if status == 'supported' and reasons:
+    automatic_coverage = any(c.get('method') == 'verification_context' and c.get('automatic_coverage')
+        for c in assessment.get('checks', []))
+    only_approval_pending = (automatic_coverage and assessment['review_state'] == 'awaiting_review'
+        and not assessment['stale'] and obligation != 'unclear')
+    if status == 'supported' and reasons and not only_approval_pending:
         status = 'inconclusive'
-    findings = [c['rationale'] for c in assessment.get('checks', []) if c.get('outcome') not in {None, 'pass'} and c.get('rationale')]
+    findings = [c['rationale'] for c in assessment.get('checks', []) if c.get('outcome') not in {None, 'pass', 'not_applicable'} and c.get('rationale')]
     return status, [assessment['explanation'], *dict.fromkeys(findings), *reasons]
 
 
@@ -51,11 +64,30 @@ def requirement_row(db, req, member=None):
         Assessment.requirement_version_id == req.id).order_by(Assessment.created_at.desc(), Assessment.id.desc()).limit(1))
     assessment = assessment_view(db, latest) if latest else None
     status, reasons = effective_status(assessment, req.obligation)
-    unresolved = status != 'supported'
+    reasons = list(dict.fromkeys([*reasons, *req.condition.get('review_reasons', [])]))
+    plan = build_check_plan(req, db.get(SourceSpan, req.source_span_id))
+    uncertain = interpretation_uncertain(req.condition)
+    literal_next_action = (plan.get('action', {}).get('rule') == 'literal_source_action'
+        and not req.condition.get('quantity_conflict')
+        and not req.condition.get('unresolved_interpretations')
+        and not plan['unhandled'])
+    if (assessment and plan['kind'] == 'procedure' and (not uncertain or literal_next_action) and status in {'inconclusive', 'not_checked'}
+            and (not assessment or (not assessment['stale'] and assessment['review_state'] not in {'rejected','reopened'}))):
+        status = 'action_required'
+        reasons.insert(0, 'This is a procedural action. Complete the linked task and retain its completion record. Task completion alone does not approve the bid.')
+
+    # A complete automatic evidence match is distinct from final approval.
+    # Pending approval must still block readiness and remain visible in exports.
+    unresolved = status != 'supported' or not assessment or assessment['review_state'] != 'approved' or assessment['stale']
+    if (plan['kind'] == 'reference' and not uncertain
+            and (not assessment or (not assessment['stale'] and assessment['review_state'] not in {'rejected', 'reopened'}))):
+        status = 'reference_only'
+        unresolved = False
+        reasons = ['Tender reference information; no supplier evidence assertion is made.']
     return {**source, 'category': req.category, 'obligation': req.obligation,
-            'status': status, 'label': LABELS[status], 'assessment': assessment,
+            'status': status, 'label': READINESS_LABELS[status], 'assessment': assessment,
             'reasons': reasons, 'unresolved': unresolved,
-            'blocking': (req.obligation != 'optional' and unresolved) or req.obligation == 'unclear'}
+            'blocking': status != 'reference_only' and ((req.obligation != 'optional' and unresolved) or req.obligation == 'unclear')}
 
 
 def dashboard(db, wid):
@@ -81,10 +113,10 @@ def dashboard(db, wid):
     mandatory_open = sum(r['blocking'] for r in rows)
     if mandatory_open:
         blockers.append(f'{mandatory_open} mandatory or unclassified requirements remain unresolved.')
-    if any(r['obligation'] == 'optional' and (r['status'] == 'inconclusive' or not r['assessment'] or r['assessment']['review_state'] != 'approved' or r['assessment']['stale']) for r in rows):
+    if any(r['status'] != 'reference_only' and r['obligation'] == 'optional' and (r['status'] == 'inconclusive' or not r['assessment'] or r['assessment']['review_state'] != 'approved' or r['assessment']['stale']) for r in rows):
         blockers.append('Optional requirements still need human review; record how they will be handled.')
     current_ids = {r['assessment']['id'] for r in rows if r['assessment']}
-    blocking_ids = {r['assessment']['id'] for r in rows if r['assessment'] and r['obligation'] != 'optional'}
+    blocking_ids = {r['assessment']['id'] for r in rows if r['assessment'] and r['obligation'] != 'optional' and r['status'] != 'reference_only'}
     tasks = [task_view(db, t, current_ids) for t in db.scalars(select(CorrectiveTask).where(
         CorrectiveTask.workspace_id == wid).order_by(CorrectiveTask.created_at.desc(), CorrectiveTask.id.desc()))]
     if any(t['status'] == 'open' and t['assessment_id'] in blocking_ids for t in tasks):
@@ -92,7 +124,7 @@ def dashboard(db, wid):
     return {'workspace_id': wid, 'title': workspace.title, 'supplier_name': workspace.supplier_name,
             'snapshot_sequence': snapshot.sequence if snapshot else None, 'notice': NOTICE,
             'review_complete': not blockers, 'blockers': blockers,
-            'counts': {status: sum(r['status'] == status for r in rows) for status in LABELS},
+            'counts': {status: sum(r['status'] == status for r in rows) for status in READINESS_LABELS},
             'requirements': rows, 'tasks': tasks, 'pending_documents': pending}
 
 

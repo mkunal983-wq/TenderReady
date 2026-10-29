@@ -87,8 +87,12 @@ def test_prose_auto_mapping_selective_reassessment_and_history(database,tmp_path
         assert [r['action'] for r in impact['old_assessment']['reviews']]==['approved','reopened']
         assert impact['approval_ids']==[impact['old_assessment']['reviews'][0]['id']]
         new=impact['new_assessment']; assert new['status']=='conflicting' and new['review_state']=='awaiting_review'
-        assert [c['field'] for c in new['checks'] if c.get('execution')=='executed']==['ram_gb']
+        assert {(c['field'],c['outcome']) for c in new['checks'] if c.get('execution')=='executed'}=={('coverage','pass'),('ram_gb','conflict')}
         assert {c['field'] for c in new['checks'] if c.get('execution')=='reused'}=={'model','product_scope'}
+        for reused in (c for c in new['checks'] if c.get('execution')=='reused'):
+            prior = next(c for c in impact['old_assessment']['checks'] if c.get('field')==reused['field'])
+            assert {k: v for k, v in reused.items() if k not in {'execution', 'reused_from_assessment_id'}} == {
+                k: v for k, v in prior.items() if k != 'execution'}
         ram=next(c for c in new['checks'] if c.get('field')=='ram_gb')
         assert '32' in ram['rationale'] and '16 GB' in ram['rationale'] and ram['sources'][0]['page']==1
         assert change['before']['stable_id']==change['after']['stable_id'] and change['after']['version']==2

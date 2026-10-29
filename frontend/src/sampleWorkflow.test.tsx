@@ -36,7 +36,7 @@ it('marks scripted approvals and verifies the persisted amendment result',async(
 });
 it('provides replacement download and existing workspace routes without claiming AI inference',()=>{
   render(<SampleGuide workspaceId="w"/>);
-  expect(screen.getByText(/No AI inference/)).toBeInTheDocument();
+  expect(screen.getByText(/AI not used/)).toBeInTheDocument();
   expect(screen.getByText('32 GB replacement datasheet')).toHaveAttribute('download');
   expect(screen.getByText('Evidence Library')).toHaveAttribute('href','#/workspaces/w/evidence');
 });

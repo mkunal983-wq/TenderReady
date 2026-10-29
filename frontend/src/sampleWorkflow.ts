@@ -14,7 +14,7 @@ export async function createSampleWorkflow(request:Request, progress:(message:st
   let workspace:SampleWorkspace|null=null;
   const post=<T,>(path:string,body?:unknown)=>request<T>(path,{method:'POST',...(body?{body:JSON.stringify(body)}:{})});
   try {
-    progress('Loading synthetic PDFs…');
+    progress('Loading sample PDFs…');
     // Obtain all fixtures before creating any database records.
     const files=await Promise.all(['original-tender.pdf','datasheet-16gb.pdf','ram-amendment.pdf'].map(async name=>{
       const response=await fetch(`/samples/offline/${name}`);
@@ -31,14 +31,14 @@ export async function createSampleWorkflow(request:Request, progress:(message:st
     const originalPath=`${prefix}/documents/${original.id}`;
     await post(originalPath+'/extract-labelled');
     const requirements=await request<Requirement[]>(originalPath+'/requirements');
-    if(requirements.length!==2)throw new Error('Expected two labelled sample requirements. Inspect the saved workspace.');
+    if(requirements.length!==2)throw new Error('The sample should have two requirements. Open the saved workspace to check what was found.');
     for(const req of requirements){
       const assessment=await post<Assessment>(`${prefix}/requirements/${req.id}/verify`,{coverage_confirmed:true,reviewer});
-      if(assessment.status!=='supported')throw new Error('Original sample evidence was not supported. Inspect the finding.');
+      if(assessment.status!=='supported')throw new Error('The original sample document did not pass its checks. Open the result to see why.');
       await post(`${prefix}/assessments/${assessment.id}/reviews`,{action:'approved',reviewer,comment:'Synthetic scripted approval for this sample only. Original labelled model and threshold match. Not a real supplier review.'});
     }
     await post(originalPath+'/baseline',{coverage_confirmed:true,reviewer});
-    progress('Applying the 32 GB amendment and checking dependencies…');
+    progress('Applying the 32 GB update and rechecking affected requirements…');
     const amendment=await upload(2,'/documents?kind=amendment');
     const amendmentPath=`${prefix}/documents/${amendment.id}`;
     await post(amendmentPath+'/extract-labelled');
@@ -46,7 +46,7 @@ export async function createSampleWorkflow(request:Request, progress:(message:st
     const preview=await post<{fingerprint:string}>(amendmentPath+'/compare',payload);
     const result=await post<Snapshot>(amendmentPath+'/apply-amendment',{...payload,fingerprint:preview.fingerprint});
     if(!result.changes.some(c=>c.classification==='Modified'&&c.impacts?.some(i=>i.new_assessment?.status==='conflicting')) || !result.changes.some(c=>c.classification==='Unchanged'))
-      throw new Error('The sample did not produce the expected RAM conflict and unchanged storage requirement. Inspect saved findings.');
+      throw new Error('The sample should show a RAM mismatch and no change to storage. Open the saved results to see what happened.');
     return workspace;
   } catch(error) {
     throw new SampleWorkflowError(error instanceof Error?error.message:'Sample workflow failed.',workspace);

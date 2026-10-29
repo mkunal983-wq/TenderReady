@@ -1,52 +1,26 @@
-import { IconArrowRight, IconBolt, IconShieldCheck, IconRefresh, IconFileText, IconBuilding, IconSchool, IconBuildingBank, IconClipboardCheck, IconChevronDown, IconCheck, IconFiles, IconListCheck } from '@tabler/icons-react';
-import { FlipWords } from './ui/flip-words';
+import { useState } from 'react';
+import { IconArrowRight, IconShieldCheck, IconRefresh, IconFileText, IconBuilding, IconSchool, IconBuildingBank, IconClipboardCheck, IconCheck } from '@tabler/icons-react';
 import './landing.css';
-
-const outcomes = ['submission-ready', 'source-linked', 'review-ready'];
-const features = [
-  { Icon: IconBolt, label: 'AI requirement', detail: 'extraction', color: 'violet' },
-  { Icon: IconShieldCheck, label: 'Evidence', detail: 'verification', color: 'green' },
-  { Icon: IconRefresh, label: 'Amendment', detail: 'impact tracking', color: 'orange' },
-  { Icon: IconFileText, label: 'Exportable', detail: 'evidence pack', color: 'blue' },
+const examples = [
+ {name:'Storage check',required:'At least 512 GB SSD',offered:'512 GB SSD',clause:'The offered laptop must include at least 512 GB SSD storage.',evidence:'Model: Atlas A14. Storage: 512 GB SSD.',result:'Storage threshold matches',note:'512 GB meets the minimum. Other requirements still need their own checks.',match:true},
+ {name:'Last-minute change',required:'RAM increases from 16 to 32 GB',offered:'16 GB RAM',clause:'Amendment: minimum RAM is now 32 GB, replacing the original 16 GB requirement.',evidence:'Model: Atlas A14. RAM: 16 GB.',result:'Earlier evidence needs reassessment',note:'16 GB is below the new minimum. Request replacement evidence and reopen the affected review.',match:false},
+ {name:'Warranty & repairs',required:'3-year onsite warranty',offered:'3-year onsite warranty',clause:'The laptop must have at least three years of onsite warranty.',evidence:'Model: Atlas A14. Warranty: 3 years, onsite service.',result:'Sample warranty terms match',note:'Duration and service type match. Real checks also need the correct product, issuer and applicable dates.',match:true},
 ];
-
 export function Landing() {
-  return <div className="tr-landing">
-    <header className="tr-nav">
-      <a className="tr-logo" href="/" aria-label="TenderReady home"><span className="tr-mark">T</span><span><strong>TenderReady</strong><small>Procurement Intelligence</small></span></a>
-      <nav aria-label="Main navigation"><a href="#product-preview">Product</a><a href="#how-it-works">Solution <IconChevronDown size={13}/></a><a href="#for-suppliers">For Suppliers <IconChevronDown size={13}/></a><a href="#how-it-works">How it works</a></nav>
-      <a className="tr-button tr-primary tr-nav-cta" href="#workspace-start">Get started <IconArrowRight size={17}/></a>
-    </header>
-    <section className="tr-hero" aria-labelledby="tr-headline">
-      <div className="tr-hero-copy">
-        <div className="tr-eyebrow">AI-POWERED PROCUREMENT ASSISTANT</div>
-        <h1 id="tr-headline"><span className="sr-only">From complex tenders to submission-ready, source-linked evidence.</span><span aria-hidden="true">From complex<br/>tenders to<br/><span className="tr-flip"><FlipWords words={outcomes} className="tr-gradient-word px-0"/></span><br/>evidence.</span></h1>
-        <p>TenderReady helps IT suppliers prepare, verify, and manage tender documentation with AI — so every requirement has the right evidence, and every change is accounted for.</p>
-        <div className="tr-actions"><a className="tr-button tr-primary" href="#workspace-start">Start your workspace <IconArrowRight size={19}/></a><a className="tr-button tr-secondary" href="#how-it-works"><IconListCheck size={19}/> See how it works</a></div>
-        <div className="tr-features">{features.map(({Icon,label,detail,color}) => <div key={label}><span className={`tr-feature-icon ${color}`}><Icon size={21}/></span><span>{label}<br/>{detail}</span></div>)}</div>
-      </div>
-      <div className="tr-visual" id="product-preview" aria-label="TenderReady product preview">
-        <div className="tr-ribbon tr-ribbon-one" aria-hidden="true"/><div className="tr-ribbon tr-ribbon-two" aria-hidden="true"/>
-        <div className="tr-doc-chip tr-original"><span className="tr-file-icon pink"><IconFileText size={26}/></span><span>Tender PDF<small>Original document</small></span></div>
-        <div className="tr-doc-chip tr-amendment"><span className="tr-file-icon blue"><IconFiles size={26}/></span><span>Amendment<small>Version history</small></span></div>
-        <div className="tr-extraction"><span className="tr-ring"/><span>Source-linked requirements<span className="tr-skeleton"/><span className="tr-skeleton short"/></span></div>
-        <figure className="tr-dashboard">
-          <div className="tr-dashboard-bar"><span className="tr-mini-mark">T</span><b>TenderReady</b><span className="tr-preview-badge">SYNTHETIC AUDIT EXAMPLE</span></div>
-          <img src="/tenderready-dashboard.png" width="1113" height="853" alt="Actual TenderReady evidence readiness interface, showing two requirements that need human review." fetchPriority="high"/>
-          <figcaption>Actual interface · Example data · Human review required</figcaption>
-        </figure>
-        <div className="tr-float-card tr-evidence"><span className="tr-file-icon green"><IconShieldCheck size={27}/></span><div><strong>Evidence verification</strong><small>Model, entity, dates & thresholds</small><div className="tr-check-note"><IconCheck size={13}/> Trace every finding to its source</div></div></div>
-        <a href="#how-it-works" className="tr-float-card tr-impact"><span className="tr-file-icon orange"><IconRefresh size={26}/></span><div><strong>Amendment impact</strong><small>Reassess affected requirements</small><span className="tr-mini-link">Explore the workflow <IconArrowRight size={13}/></span></div></a>
-      </div>
-    </section>
+ const [selected,setSelected]=useState(0); const example=examples[selected];
+ return <div className="tr-landing tr-centered">
+ <header className="tr-nav"><a className="tr-logo" href="/" aria-label="TenderReady home"><span className="tr-mark">T</span><span><strong>TenderReady</strong><small>Tender & Bid Assistant</small></span></a><nav aria-label="Main navigation"><a href="#product-preview">Interactive demo</a><a href="#how-it-works">How it works</a><a href="#for-suppliers">Who uses it</a><a href="#tender-faq">FAQ</a></nav><a className="tr-button tr-primary" href="#/workspaces">Open workspaces <IconArrowRight size={17}/></a></header>
+ <section className="tr-hero" aria-labelledby="tr-headline"><div className="tr-hero-copy"><div className="tr-eyebrow">AI-POWERED TENDER & EVIDENCE REVIEW</div><h1 id="tr-headline">Turn long, messy tenders into <span>clear, traceable decisions.</span></h1><p>TenderReady reads tender PDFs, checks your supporting documents, and tracks what changes—so you know what needs attention before you submit.</p><div className="tr-actions"><a className="tr-button tr-primary" href="#workspace-start">Start a workspace <IconArrowRight size={18}/></a><a className="tr-button tr-secondary" href="#product-preview">Try the sample checker <IconShieldCheck size={18}/></a></div><div className="tr-benefit-pills"><span><IconCheck size={16}/> Source page references</span><span><IconRefresh size={16}/> Amendment tracking</span><span><IconShieldCheck size={16}/> Evidence-based checks</span><span><IconClipboardCheck size={16}/> Human review controls</span></div></div></section>
+ <section className="tr-checker" id="product-preview" aria-labelledby="checker-title"><header><div className="tr-demo-caption"><span className="tr-eyebrow">SAMPLE EXAMPLE</span> Explore evidence checks · No AI credits used</div><h2 id="checker-title">Interactive tender checker</h2><p>Choose an example to compare a tender requirement with supplier evidence.</p><div className="tr-example-tabs" role="group" aria-label="Sample scenarios">{examples.map((item,i)=><button key={item.name} aria-pressed={selected===i} onClick={()=>setSelected(i)}>{i+1}. {item.name}<small>{item.match?'MATCH':'CHANGE'}</small></button>)}</div></header><div className="tr-example-body" key={selected}><div className="tr-comparison"><article><div className="tr-card-label">WHAT THE TENDER ASKS FOR <span>Sample tender clause</span></div><h3>{example.required}</h3><blockquote>{example.clause}</blockquote></article><div className="tr-match-marker">{example.match?<IconCheck size={27}/>:<IconRefresh size={27}/>}<small>{example.match?'MATCH':'RECHECK'}</small></div><article className={example.match?'tr-evidence-match':'tr-evidence-warning'}><div className="tr-card-label">WHAT THE EVIDENCE SAYS <span>Sample supplier excerpt</span></div><h3>{example.offered}</h3><blockquote>{example.evidence}</blockquote></article></div><div className={'tr-example-result '+(example.match?'':'tr-is-warning')} aria-live="polite"><IconShieldCheck size={26}/><div><h3>{example.result}</h3><p>{example.note}</p></div></div><p className="tr-sample-note">Illustrative sample text—not uploaded documents, a live AI result, or a bid approval. Your workspace keeps actual source pages and review history.</p></div></section>
+ <section id="tender-faq" className="tr-faq"><h2>A few things worth knowing</h2><details><summary>Does matching evidence mean my bid is approved?</summary><p>No. Checks help you review documents. The buyer determines eligibility and award.</p></details><details><summary>What happens when a tender changes?</summary><p>Affected requirements are reassessed while previous results and review history are preserved.</p></details><details><summary>Can I try it without an AI key?</summary><p>Yes, use a sample workspace. Real tender extraction needs the server-side Nebius API key.</p></details></section>
     <section className="tr-proof" id="for-suppliers" aria-label="Who TenderReady is for">
-      <div className="tr-audiences"><strong>Built for procurement teams</strong><div>{[{Icon:IconBuilding,label:<>IT Hardware<br/>Suppliers</>},{Icon:IconSchool,label:<>Schools &<br/>Universities</>},{Icon:IconBuildingBank,label:<>Institutional<br/>Procurement</>}].map(({Icon,label},i)=><span className="tr-audience" key={i}><Icon size={25}/><span>{label}</span></span>)}</div></div>
-      <div className="tr-principles"><div><b>Source-linked</b><span>evidence & findings</span></div><div><b>Change-aware</b><span>requirement review</span></div><div><b>Human-led</b><span>approval decisions</span></div></div>
+      <div className="tr-audiences"><strong>Built for suppliers and buying teams</strong><div>{[{Icon:IconBuilding,label:<>IT Hardware<br/>Suppliers</>},{Icon:IconSchool,label:<>Schools &<br/>Universities</>},{Icon:IconBuildingBank,label:<>Buying<br/>Teams</>}].map(({Icon,label},i)=><span className="tr-audience" key={i}><Icon size={25}/><span>{label}</span></span>)}</div></div>
+      <div className="tr-principles"><div><b>Clear sources</b><span>for each result</span></div><div><b>Track changes</b><span>and what needs rechecking</span></div><div><b>You decide</b><span>what to approve</span></div></div>
     </section>
     <section className="tr-how" id="how-it-works">
-      <span className="tr-eyebrow">HOW IT WORKS</span><h2>From tender to <span>traceable evidence</span></h2><p>A structured workflow to help you stay compliant and submit with confidence.</p>
-      <div className="tr-steps">{[{Icon:IconFileText,title:'Bring your tender',body:'Create a workspace and upload the tender PDF. Review extracted clauses with exact page references.'},{Icon:IconShieldCheck,title:'Check the evidence',body:'Upload supplier documents. Inspect identity, dates and thresholds, then resolve discrepancies.'},{Icon:IconClipboardCheck,title:'Review every change',body:'Upload amendments, reassess affected findings, approve your decisions and export the evidence pack.'}].map(({Icon,title,body},i)=><article key={title}><div><Icon size={23}/><span>0{i+1}</span></div><h3>{title}</h3><p>{body}</p></article>)}</div>
-      <p className="tr-disclaimer">Evidence review supports your decisions. It does not guarantee eligibility, document authenticity, or contract award.</p>
+      <span className="tr-eyebrow">HOW IT WORKS</span><h2>From tender to <span>evidence you can check</span></h2><p>Simple steps to check your documents before you submit a bid.</p>
+      <div className="tr-steps">{[{Icon:IconFileText,title:'Bring your tender',body:'Create a workspace and upload the tender PDF. Read the requirements and open the page each one came from.'},{Icon:IconShieldCheck,title:'Check the evidence',body:'Upload company documents. Check product models, company names, dates and amounts. Fix any missing or conflicting details.'},{Icon:IconClipboardCheck,title:'Review every change',body:'Upload a tender update. Recheck the affected requirements, approve the results you have reviewed, and download your reports.'}].map(({Icon,title,body},i)=><article key={title}><div><Icon size={23}/><span>0{i+1}</span></div><h3>{title}</h3><p>{body}</p></article>)}</div>
+      <p className="tr-disclaimer">This helps you review documents. It does not prove that documents are genuine or guarantee that your bid qualifies or wins.</p>
     </section>
   </div>;
 }

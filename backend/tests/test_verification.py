@@ -224,7 +224,11 @@ def test_missing_unconfirmed_and_no_model_scope(database,tmp_path):
         wid=workspace(client); req,_=transcribe(client,wid)
         assert evaluate(client,wid,req['id'])['status']=='missing'
         send_pdf(client,wid,pdf('Model: Atlas A14\nRAM: 16 GB'),'datasheet')
-        assert evaluate(client,wid,req['id'],False)['status']=='inconclusive'
+        automatic = evaluate(client,wid,req['id'],False)
+        assert automatic['status']=='supported' and automatic['review_state']=='awaiting_review'
+        assert automatic['checks'][0]['coverage_confirmed'] is False
+        assert automatic['checks'][0]['automatic_coverage'] is True
+        assert any(c.get('field')=='coverage' and c.get('outcome')=='pass' for c in automatic['checks'])
         req,_=transcribe(client,wid,'RAM: at least 16 GB')
         assert evaluate(client,wid,req['id'])['status']=='inconclusive'
 

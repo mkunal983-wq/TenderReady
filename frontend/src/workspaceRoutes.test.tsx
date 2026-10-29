@@ -19,3 +19,11 @@ it('reads direct links and updates on browser hash navigation',()=>{
   act(()=>{window.history.replaceState(null,'',workspaceHref('w','evidence'));window.dispatchEvent(new HashChangeEvent('hashchange'));});
   expect(screen.getByRole('status')).toHaveTextContent('/workspaces/w/evidence');
 });
+
+it('round trips requirement status links and ignores unsupported filter values',()=>{
+  expect(parseWorkspaceRoute(workspaceHref('w','requirements','not_checked'))).toEqual({workspaceId:'w',page:'requirements',status:'not_checked'});
+  expect(parseWorkspaceRoute('#/workspaces/w/requirements?status=inconclusive')).toEqual({workspaceId:'w',page:'requirements',status:'inconclusive'});
+  expect(parseWorkspaceRoute('#/workspaces/w/requirements?status=anything')).toEqual({workspaceId:'w',page:'requirements'});
+  expect(parseWorkspaceRoute('#/workspaces/w/tasks?status=not_checked')).toEqual({workspaceId:'w',page:'tasks'});
+  expect(workspaceHref('w','tasks','not_checked')).toBe('#/workspaces/w/tasks');
+});

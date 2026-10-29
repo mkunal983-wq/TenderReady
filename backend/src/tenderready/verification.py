@@ -1,7 +1,8 @@
 """Conservative verification of explicitly labelled facts, never similarity-as-proof.
 
-Rule coverage is deliberately bounded. Unparsed text and ambiguous identity remain
-reviewable. A human must confirm criterion coverage before support is possible.
+Rule coverage is deliberately bounded. Complete literal clauses can be checked
+automatically; unparsed text and ambiguous identity remain reviewable. Final
+human approval is separate from a document-based result.
 """
 import re
 from datetime import date, datetime, timezone
@@ -13,6 +14,12 @@ from sqlalchemy import select
 from .models import (Workspace, DocumentVersion, SourceSpan, RequirementVersion, EvidenceFact,
                      EvidenceLibraryEntry, Assessment, AssessmentEvidence, ReviewDecision, CorrectiveTask,
                      AssessmentDependency, ReassessmentImpact)
+from .check_planning import DEFAULT_FIELDS, build_check_plan, represented_condition
+from .product_scope import scope_evidence
+from .hardware_comparison import baseline_match
+from . import component_dependencies
+
+RULES_VERSION = 'source_scoped_checks_v10'
 
 EvidenceType = Literal['datasheet', 'authorization', 'certificate', 'project_reference']
 Status = Literal['supported', 'missing', 'conflicting', 'outdated', 'inconclusive']
@@ -21,8 +28,8 @@ LABELS = {'supported': 'Supported by evidence', 'missing': 'Missing', 'conflicti
 FIELD_LABELS = {'model': 'Model', 'bidder': 'Bidder', 'ram_gb': 'RAM', 'storage_gb': 'Storage',
                 'valid_until': 'Valid until', 'valid_from': 'Valid from', 'project_value_inr': 'Project value',
                 'certificate_number': 'Certificate number', 'manufacturer': 'Manufacturer',
-                'project_reference': 'Project reference'}
-NUMBER_FIELDS = {'ram_gb', 'storage_gb', 'project_value_inr'}
+                'project_reference': 'Project reference', 'storage_type': 'Storage type', 'memory_type': 'Memory type', 'operating_system': 'Operating System', 'bluetooth': 'Bluetooth', 'wifi': 'Wifi', 'webcam': 'Webcam', 'speaker': 'Speaker', 'usb': 'USB', 'screen_inches': 'Screen size', 'display_backlight': 'Display backlight', 'cpu_ghz': 'CPU speed', 'cpu_bits': 'CPU architecture', 'cpu_cores': 'CPU cores', 'cpu_family': 'CPU family', 'processor': 'Processor', 'graphics': 'Graphics', 'hdmi': 'HDMI', 'vga': 'VGA', 'ethernet': 'Ethernet', 'usb2_ports': 'USB 2.0 ports', 'usb3_ports': 'USB 3.0 ports'}
+NUMBER_FIELDS = {'ram_gb', 'storage_gb', 'project_value_inr', 'screen_inches', 'cpu_ghz', 'cpu_bits', 'cpu_cores', 'usb2_ports', 'usb3_ports'}
 
 
 class Strict(BaseModel):
@@ -30,8 +37,8 @@ class Strict(BaseModel):
 
 
 class Criterion(Strict):
-    field: Literal['model','bidder','ram_gb','storage_gb','valid_until','valid_from','project_value_inr','certificate_number','manufacturer','project_reference']
-    operator: Literal['eq', 'gte', 'lte', 'present']
+    field: Literal['model','bidder','ram_gb','storage_gb','valid_until','valid_from','project_value_inr','certificate_number','manufacturer','project_reference','storage_type','memory_type','operating_system','bluetooth','wifi','webcam','speaker','usb','screen_inches','display_backlight','cpu_ghz','cpu_bits','cpu_cores','cpu_family','processor','graphics','hdmi','vga','ethernet','usb2_ports','usb3_ports']
+    operator: Literal['eq', 'gte', 'lte', 'lt', 'present', 'baseline']
     expected: str = Field(max_length=200)
     quote: str = Field(min_length=1, max_length=5000)
     evidence_type: EvidenceType
@@ -40,6 +47,8 @@ class Criterion(Strict):
     def valid_comparison(self):
         compatible = {
             'model': {'datasheet','authorization'}, 'ram_gb': {'datasheet'}, 'storage_gb': {'datasheet'},
+            'storage_type': {'datasheet'}, 'memory_type': {'datasheet'},
+            **{field: {'datasheet'} for field in ('operating_system','bluetooth','wifi','webcam','speaker','usb','screen_inches','display_backlight','cpu_ghz','cpu_bits','cpu_cores','cpu_family','processor','graphics','hdmi','vga','ethernet','usb2_ports','usb3_ports')},
             'bidder': {'authorization','certificate','project_reference'},
             'certificate_number': {'certificate'}, 'project_value_inr': {'project_reference'},
             'project_reference': {'project_reference'},
@@ -48,8 +57,10 @@ class Criterion(Strict):
             raise ValueError('This field cannot be verified using that evidence type')
         if self.operator != 'present' and not self.expected:
             raise ValueError('A comparison needs an expected value')
-        if self.field not in NUMBER_FIELDS | {'valid_until','valid_from'} and self.operator not in {'eq','present'}:
+        if self.field not in NUMBER_FIELDS | {'valid_until','valid_from'} and self.operator not in {'eq','present','baseline'}:
             raise ValueError('Text fields support equality or presence only')
+        if self.operator == 'baseline' and self.field not in {'cpu_family','processor','graphics'}:
+            raise ValueError('Baseline matching is restricted to hardware identity fields')
         return self
 
 
@@ -89,6 +100,33 @@ def normalize(value):
 
 
 def typed(field, value):
+    if field == 'cpu_cores':
+        if normalize(value) in {'dual', 'dual-core'}:
+            return Decimal(2)
+        match = re.fullmatch(r'(\d+)(?:\s*cores?)?', value.strip(), re.I)
+        if not match or int(match[1]) < 1:
+            raise ValueError('Physical core count must be a positive whole number')
+        return Decimal(match[1])
+    if field in {'cpu_ghz', 'cpu_bits'}:
+        unit = 'GHz' if field == 'cpu_ghz' else 'bit'
+        match = re.fullmatch(r'(\d+(?:\.\d+)?)(?:\s*' + unit + r')?', value.strip(), re.I)
+        if not match:
+            raise ValueError('Explicit CPU value required')
+        return Decimal(match[1])
+    if field == 'screen_inches':
+        match = re.fullmatch(r'(\d+(?:\.\d+)?)(?:\s*inches|\s*inch)?', value.strip(), re.I)
+        if not match:
+            raise ValueError('Screen size requires inches')
+        return Decimal(match[1])
+    if field in {'usb2_ports', 'usb3_ports'}:
+        match = re.fullmatch(r'(\d+)(?:\s*ports?)?', value.strip(), re.I)
+        if not match:
+            raise ValueError('Port count must be a whole number')
+        return Decimal(match[1])
+    if field in {'usb', 'hdmi', 'vga'}:
+        if normalize(value) not in {'yes', 'present', 'included', field}:
+            raise ValueError('USB presence is not explicitly established')
+        return 'present'
     if field in NUMBER_FIELDS:
         pattern = r'(?:INR\s*)?([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)(?:\s*GB)?'
         match = re.fullmatch(pattern, value.strip(), re.I)
@@ -108,15 +146,32 @@ def read_facts(span):
     facts = []
     # Anchor complete lines, so a heading, negated prose, or a semantic hit cannot
     # become a field value. Tables and unlabeled prose intentionally abstain.
-    for field, label in FIELD_LABELS.items():
+    labels = [(field, label) for field, label in FIELD_LABELS.items()]
+    labels.extend([('ram_gb', 'Memory'), ('storage_gb', 'Hard Disk')])
+    for field, label in labels:
         for match in re.finditer(r'^\s*' + re.escape(label) + r':\s*([^\n\r]+)$', span.text, re.M | re.I):
             raw = match[1].strip()
             quote = match[0].strip()
+            # A complete, explicit capacity/type phrase yields two linked facts;
+            # do not strip arbitrary trailing claims or alternative values.
+            qualifier = None
+            if field in {'ram_gb', 'storage_gb'}:
+                kinds = r'(?:(?:LP)?DDR[2-5]X?)' if field == 'ram_gb' else r'(?:Flash|SSD|HDD)'
+                measured = re.fullmatch(r'([\d,.]+\s*GB)(?:\s+(' + kinds + r'))?', raw, re.I)
+                if measured:
+                    raw = measured[1]
+                    qualifier = measured[2]
             try:
                 if normalize(raw) in {'', '-', 'n/a', 'na', 'none', 'no', 'unknown', 'pending', 'not provided', 'not available', 'not applicable', 'missing', 'tbd'}:
                     raise ValueError('Placeholder is not supporting evidence')
                 if field in {'ram_gb','storage_gb'} and not re.fullmatch(r'[\d,.]+\s*GB', raw, re.I):
                     raise ValueError('GB unit required')
+                if field in {'cpu_ghz', 'cpu_bits'} and not re.fullmatch(r'\d+(?:\.\d+)?\s*' + ('GHz' if field == 'cpu_ghz' else 'bit'), raw, re.I):
+                    raise ValueError('Explicit CPU unit required')
+                if field in {'usb2_ports', 'usb3_ports'} and not re.fullmatch(r'\d+(?:\s*ports?)?', raw, re.I):
+                    raise ValueError('Port count must be a whole number')
+                if field == 'screen_inches' and not re.fullmatch(r'\d+(?:\.\d+)?\s*inch(?:es)?', raw, re.I):
+                    raise ValueError('Explicit inch unit required')
                 if field == 'project_value_inr' and not raw.upper().startswith('INR '):
                     raise ValueError('INR unit required')
                 value = typed(field, raw)
@@ -127,6 +182,12 @@ def read_facts(span):
                 'value': parsed, 'quote': quote, 'method': 'deterministic_label_parser_v1',
                 'source_span_id': span.id, 'page': span.page, 'document_version_id': span.document_version_id,
                 'authenticity': 'not_independently_verified'}})
+            if qualifier:
+                facts.append({'field': 'memory_type' if field == 'ram_gb' else 'storage_type',
+                    'raw_value': qualifier, 'normalized': {'value': normalize(qualifier), 'quote': quote,
+                    'method': 'deterministic_capacity_type_v1', 'source_span_id': span.id,
+                    'page': span.page, 'document_version_id': span.document_version_id,
+                    'authenticity': 'not_independently_verified'}})
     return facts
 
 
@@ -223,6 +284,7 @@ def threshold_sentence(req):
         or getattr(req, 'category', None) == 'manual_review'
         or condition.get('date_conditions') or len(condition.get('numeric_conditions', [])) != 1
         or condition.get('ambiguous') or condition.get('requires_human_review')
+        or any(c.get('kind') == 'product_scope' for c in condition.get('source_context', []))
         or any(re.search(r'\b(ambiguous|uncertain|uncertainty|unsupported|incomplete|conflicting|contradictory)\b', reason, re.I)
                for reason in condition.get('review_reasons', []))):
         return None
@@ -248,7 +310,7 @@ def threshold_sentence(req):
     return {'key': key, 'criteria': criteria}
 
 
-def propose(req):
+def _propose_candidates(req):
     result = []
     # Suggestions only. Human coverage confirmation is still mandatory.
     for field in ('model','bidder','ram_gb','storage_gb','valid_until','project_value_inr','certificate_number'):
@@ -273,6 +335,35 @@ def propose(req):
     return result
 
 
+def automatic_proposals(req):
+    """Only expose runnable suggestions; unsupported wording remains a finding.
+
+    Labelled PDF rows can contain suffixes, alternate values or several product
+    attributes. Never coerce these into equality checks by stripping the extra
+    words. Explicit user criteria still go through verify's strict validation.
+    """
+    criteria, review_reasons = [], []
+    for candidate in _propose_candidates(req):
+        try:
+            criterion = Criterion(**candidate)
+            if criterion.quote not in req.statement:
+                raise ValueError('Missing source wording')
+            if criterion.operator != 'present':
+                if normalize(criterion.expected) not in normalize(criterion.quote):
+                    raise ValueError('Missing source value')
+                typed(criterion.field, criterion.expected)
+        except (ValueError, InvalidOperation):
+            field = FIELD_LABELS.get(candidate.get('field'), 'Requirement')
+            review_reasons.append(f'{field}: the wording cannot be safely turned into an automatic check. Review the value, unit and comparison in the original PDF.')
+            continue
+        criteria.append(criterion.model_dump())
+    return criteria, list(dict.fromkeys(review_reasons))
+
+
+def propose(req):
+    return automatic_proposals(req)[0]
+
+
 def list_evidence(db, wid, include_superseded=False):
     rows = db.execute(select(DocumentVersion, EvidenceLibraryEntry).join(EvidenceLibraryEntry,
         EvidenceLibraryEntry.document_version_id == DocumentVersion.id).where(DocumentVersion.workspace_id == wid)
@@ -281,10 +372,133 @@ def list_evidence(db, wid, include_superseded=False):
     return rows if include_superseded else [(doc, entry) for doc, entry in rows if doc.id not in superseded]
 
 
+def _criterion_key(item):
+    values = item.model_dump() if isinstance(item, Criterion) else item
+    expected = typed(values['field'], values['expected']) if values['operator'] != 'present' else ''
+    return values['field'], values['operator'], str(expected), values['evidence_type']
+
+
+def prepared_verification(db, req):
+    """Build a source-grounded plan and explicit evidence assignment, without AI."""
+    source = db.get(SourceSpan, req.source_span_id)
+    plan = build_check_plan(req, source, supported_fields=DEFAULT_FIELDS | {'storage_type', 'memory_type', 'operating_system', 'bluetooth', 'wifi', 'webcam', 'speaker', 'usb', 'screen_inches', 'display_backlight', 'cpu_ghz', 'cpu_bits', 'cpu_cores', 'cpu_family', 'processor', 'graphics', 'hdmi', 'vga', 'ethernet', 'usb2_ports', 'usb3_ports'})
+    plan['dependencies'] = component_dependencies.components(db, req)
+    plan['source_criteria'] = list(plan['criteria'])
+    # Preserve existing supported API values/quotes when their meaning agrees.
+    legacy, legacy_reasons = automatic_proposals(req)
+    criteria = list(plan['criteria'])
+    for old in legacy:
+        equal = next((i for i, item in enumerate(criteria) if _criterion_key(item) == _criterion_key(old)), None)
+        if equal is not None:
+            criteria[equal] = old
+        elif not any(item['field'] == old['field'] for item in criteria):
+            criteria.append(old)
+    for item in criteria:
+        Criterion(**item)
+        if item['quote'] not in source.text or item['quote'] not in req.statement:
+            raise HTTPException(422, 'Prepared checks must match the original source page exactly.')
+    plan['criteria'] = criteria
+    if not plan['criteria']:
+        plan['coverage'] = 'manual'
+    # The new planner has parsed these fields without discarding qualifiers.
+    # Retain old-parser warnings only for wording not handled by the plan.
+    covered_labels = {FIELD_LABELS[item['field']] for item in plan['criteria']}
+    plan['review_reasons'] = list(dict.fromkeys([*plan['review_reasons'],
+        *(reason for reason in legacy_reasons if reason.split(':', 1)[0] not in covered_labels)]))
+    spans_by_doc, by_doc = {}, {}
+    for doc, entry in list_evidence(db, req.workspace_id):
+        spans = list(db.scalars(select(SourceSpan).where(SourceSpan.workspace_id == req.workspace_id,
+            SourceSpan.document_version_id == doc.id)))
+        spans_by_doc[doc.id] = spans
+        by_doc[doc.id] = (doc, entry, [fact for span in spans for fact in read_facts(span)])
+    source_ids = {source.document_version_id, *(c.get('source_document_id') for c in req.condition.get('source_context', []))} - {None}
+    requirement_spans = list(db.scalars(select(SourceSpan).where(SourceSpan.workspace_id == req.workspace_id,
+        SourceSpan.document_version_id.in_(source_ids))))
+    mapping = scope_evidence(req, by_doc, spans_by_doc, requirement_spans)
+    plan['scope'] = mapping['summary']
+    plan['auto_coverage_eligible'] = (plan['coverage'] == 'complete' and bool(criteria)
+        and not plan['review_reasons'] and mapping['required_scope']['state'] != 'needs_review')
+    return plan, mapping, by_doc
+
+
+def verification_preview(db, req):
+    plan, _, _ = prepared_verification(db, req)
+    return plan
+
+
+def _manually_covered_line(text, criteria):
+    """Keep named, explicit legacy checks usable without hiding extra wording.
+
+    This is only called after a reviewer confirms coverage. It accepts a whole
+    labelled value/presence line, never arbitrary prose or a partial quotation.
+    """
+    for criterion in criteria:
+        label = FIELD_LABELS[criterion.field]
+        match = re.fullmatch(re.escape(label) + r':\s*(.+)', text, re.I)
+        if not match or text not in criterion.quote:
+            continue
+        value = match[1].strip()
+        if criterion.operator == 'present':
+            if normalize(value) == 'must be present':
+                return True
+            continue
+        prefix = re.fullmatch(r'(at least|at most)\s+(.+)', value, re.I)
+        if prefix:
+            if criterion.operator != ('gte' if prefix[1].lower() == 'at least' else 'lte'):
+                continue
+            value = prefix[2]
+        # Exact full values keep extra qualifiers/alternatives from disappearing.
+        if normalize(value) == normalize(criterion.expected):
+            return True
+    return False
+
+
+def planning_update_needed(db, req, assessment):
+    """Upgrade unreviewed automatic findings, preserving reviewed/custom history."""
+    if any(check.get('method') == 'human_correction' for check in assessment.checks):
+        return False
+    if db.scalar(select(ReviewDecision.id).where(ReviewDecision.assessment_id == assessment.id).limit(1)):
+        return False
+    context = next((c for c in assessment.checks if c.get('method') == 'verification_context'), {})
+    if context.get('rules_version') == RULES_VERSION or context.get('reviewer') or context.get('coverage_confirmed'):
+        return False
+    # Do not replace previous custom criteria. Empty old checks are safely
+    # upgradeable, and an old grammar-generated set must still match exactly.
+    old = context.get('criteria', [])
+    previous_plan = context.get('check_plan', {})
+    generated_before = (str(context.get('rules_version', '')).startswith('source_scoped_checks_')
+        and old == previous_plan.get('criteria') and old == previous_plan.get('source_criteria'))
+    if old and old != propose(req) and not generated_before:
+        return False
+    plan = verification_preview(db, req)
+    old_dependencies = {d['requirement_id'] for d in previous_plan.get('dependencies', [])}
+    if {d['requirement_id'] for d in plan.get('dependencies', [])} != old_dependencies:
+        return True
+    return bool(plan['criteria']) and (plan['criteria'] != old or (not context.get('automatic_coverage') and plan['auto_coverage_eligible']))
+
+
 def verify(db, wid, rid, payload, *, commit=True, reuse=None, affected_fields=None, infer_criteria=True):
     workspace = db.scalar(select(Workspace).where(Workspace.id == wid).with_for_update())
     req = require_requirement(db, wid, rid)
-    criteria = payload.criteria or ([Criterion(**item) for item in propose(req)] if infer_criteria else [])
+    if req.condition.get('disposition') in {'reference', 'duplicate'}:
+        raise HTTPException(422, 'Reference-only text is not a supplier compliance requirement.')
+    if db.scalar(select(RequirementVersion.id).where(RequirementVersion.workspace_id == wid, RequirementVersion.supersedes_id == req.id).limit(1)):
+        raise HTTPException(409, 'This interpretation was superseded. Verify its current revision.')
+    plan, mapping, all_docs = prepared_verification(db, req)
+    automatic_review_reasons = list(plan['review_reasons']) if infer_criteria else []
+    proposed = plan['criteria'] if infer_criteria else []
+    if payload.criteria:
+        criteria = payload.criteria
+    elif infer_criteria:
+        criteria = [Criterion(**item) for item in proposed]
+    else:
+        criteria = []
+    if payload.coverage_confirmed:
+        for reason in tuple(automatic_review_reasons):
+            parts = [item for item in plan['unhandled'] if item['reason'] == reason]
+            if (reason == 'This part of the clause needs a manual check. It has not been dropped from the requirement.'
+                    and parts and all(_manually_covered_line(item['text'], criteria) for item in parts)):
+                automatic_review_reasons.remove(reason)
     source = db.get(SourceSpan, req.source_span_id)
     for criterion in criteria:
         if criterion.quote not in req.statement or criterion.quote not in source.text:
@@ -296,18 +510,14 @@ def verify(db, wid, rid, payload, *, commit=True, reuse=None, affected_fields=No
                 typed(criterion.field, criterion.expected)
             except (ValueError, InvalidOperation):
                 raise HTTPException(422, 'Unsupported expected value. Use explicit GB, INR, or ISO date values.') from None
-    docs = list_evidence(db, wid)
-    by_doc = {}
-    for doc, entry in docs:
-        spans = db.scalars(select(SourceSpan).where(SourceSpan.workspace_id == wid, SourceSpan.document_version_id == doc.id)).all()
-        facts = []
-        for span in spans:
-            facts.extend(read_facts(span))
-        by_doc[doc.id] = (doc, entry, facts)
-    checks = [{'method': 'verification_context', 'rules_version': 'labelled_fields_v1',
+    by_doc = mapping['by_doc']
+    same_prepared = {_criterion_key(c) for c in criteria} == {_criterion_key(c) for c in proposed}
+    automatic_coverage = infer_criteria and same_prepared and plan['auto_coverage_eligible']
+    checks = [{'method': 'verification_context', 'rules_version': RULES_VERSION,
                'criteria': [c.model_dump() for c in criteria], 'coverage_confirmed': payload.coverage_confirmed,
+               'automatic_coverage': automatic_coverage, 'check_plan': plan,
                'reviewer': payload.reviewer, 'requirement_provenance': req.condition.get('provenance', 'model_or_legacy_extraction'), 'evaluated_on': datetime.now(timezone.utc).date().isoformat(),
-               'library_document_ids': [doc.id for doc, _ in docs], 'officially_verified': False}]
+               'library_document_ids': list(all_docs), 'officially_verified': False}]
     linked = {}
     reused_fact_ids = set()
     if reuse is not None and affected_fields is not None:
@@ -326,19 +536,38 @@ def verify(db, wid, rid, payload, *, commit=True, reuse=None, affected_fields=No
                 db.add(row); db.flush(); linked[key] = row
             row = linked[key]
             refs.append({'fact_id': row.id, **fact['normalized'], 'raw_value': row.raw_value,
-                         'filename': by_doc[fact['normalized']['document_version_id']][0].filename})
+                         'filename': all_docs[fact['normalized']['document_version_id']][0].filename})
         checks.append({'method': 'deterministic', 'execution': 'executed', 'field': field, 'outcome': outcome,
                        'rationale': rationale, 'document_id': document_id, 'sources': refs})
+    # The UI sends suggested criteria back as explicit input. Editing or
+    # confirming those valid checks must not erase an unsupported part of the
+    # original clause. A reviewer can explicitly correct the final result with
+    # a comment; that separate, audited decision is not a deterministic pass.
+    for rationale in automatic_review_reasons:
+        check('interpretation', 'review', rationale)
+    if req.condition.get('requires_human_review') and not automatic_coverage and not any(c.get('kind') == 'product_scope' for c in req.condition.get('source_context', [])):
+        check('interpretation', 'review', 'This extraction has unresolved interpretation issues. Review and correct its source-backed criteria before relying on evidence checks.')
+    for item in mapping['checks']:
+        check('product_scope', item['outcome'], item['rationale'], item['facts'], item['document_id'])
     if not criteria:
         check('coverage', 'review', 'No supported check specification. Review the requirement and define source-backed criteria.')
-    if not payload.coverage_confirmed:
+    if not payload.coverage_confirmed and not automatic_coverage:
         check('coverage', 'review', 'A human must confirm that these criteria cover the entire requirement, including document purpose and scope.')
+    elif automatic_coverage:
+        check('coverage', 'pass', 'All details in this bounded clause have source-backed automatic checks. This is not a human approval.')
+    supplied_keys = {_criterion_key(c) for c in criteria}
+    for expected_check in plan['source_criteria']:
+        if _criterion_key(expected_check) not in supplied_keys:
+            check('coverage', 'review', f'The source requires a {FIELD_LABELS[expected_check["field"]]} check that was omitted or changed. Restore the prepared check, or record an explicit reviewer correction.')
     for kind, key in [('numeric', 'numeric_conditions'), ('date', 'date_conditions')]:
         for condition in req.condition.get(key, []):
             candidate = condition_criterion(req, condition, kind)
             represented = candidate and any(c.field == candidate['field'] and c.operator == candidate['operator']
                 and c.evidence_type == candidate['evidence_type']
                 and typed(c.field, c.expected) == typed(candidate['field'], candidate['expected']) for c in criteria)
+            # A complete plan independently reconciles every extracted condition
+            # with the full source clause, including supported suffix comparisons.
+            represented = represented or any(represented_condition(c.model_dump(), condition, kind) for c in criteria)
             if not represented:
                 check('coverage', 'review', 'An extracted condition has no corresponding source-backed check; review and add a suitable criterion.')
     models = {normalize(c.expected) for c in criteria if c.field == 'model' and c.operator == 'eq'}
@@ -347,7 +576,10 @@ def verify(db, wid, rid, payload, *, commit=True, reuse=None, affected_fields=No
             continue
         candidates = [(doc, entry, facts) for doc, entry, facts in by_doc.values() if entry.evidence_type == criterion.evidence_type]
         if not candidates:
-            check(criterion.field, 'missing', f'No {criterion.evidence_type} document is available.')
+            if mapping['requires_review'] and criterion.evidence_type in {'datasheet', 'authorization'}:
+                check(criterion.field, 'review', 'Company documents exist but their product assignment is unclear; no value was selected automatically.')
+            else:
+                check(criterion.field, 'missing', f'No {criterion.evidence_type} document is available for this requirement and product option.')
         for doc, entry, facts in candidates:
             values = [f for f in facts if f['field'] == criterion.field]
             if not values:
@@ -362,8 +594,14 @@ def verify(db, wid, rid, payload, *, commit=True, reuse=None, affected_fields=No
                 continue
             actual_value = next(iter(actual))
             expected = typed(criterion.field, criterion.expected) if criterion.operator != 'present' else None
+            if criterion.operator == 'baseline':
+                matched = baseline_match(actual_value, expected)
+                check(criterion.field, 'pass' if matched else 'review',
+                    f'{doc.filename}: observed {values[0]["raw_value"]}; source baseline {criterion.expected}. ' +
+                    ('Exact source-declared baseline/alternative matched; no performance ranking inferred.' if matched else 'A different CPU/GPU needs documented equivalence; model-number magnitude is not proof of performance.'), values, doc.id)
+                continue
             passed = criterion.operator == 'present' or {'eq': lambda: actual_value == expected,
-                'gte': lambda: actual_value >= expected, 'lte': lambda: actual_value <= expected}[criterion.operator]()
+                'gte': lambda: actual_value >= expected, 'lte': lambda: actual_value <= expected, 'lt': lambda: actual_value < expected}[criterion.operator]()
             outcome = 'pass' if passed else 'outdated' if criterion.field in {'valid_until','valid_from'} else 'conflict'
             check(criterion.field, outcome, f'{doc.filename}: {criterion.field} {criterion.operator} {criterion.expected or "present"}; observed {values[0]["raw_value"]}.', values, doc.id)
     # Identity and temporal guards apply to every document considered, never to
@@ -381,7 +619,9 @@ def verify(db, wid, rid, payload, *, commit=True, reuse=None, affected_fields=No
                 check('bidder_identity', 'pass' if good else 'conflict', 'Exact legal-name comparison to the workspace supplier (case and whitespace normalized only).', bidders, doc.id)
         if should_run('product_scope') and entry.evidence_type in {'datasheet','authorization'}:
             found = [f for f in facts if f['field'] == 'model']
-            if len(models) != 1 or not found:
+            if mapping['matched'] and mapping['required_scope']['key'] and found and not models:
+                check('product_scope', 'pass', 'The document names one model under the matching tender configuration; only that configuration\'s facts are used.', found, doc.id)
+            elif len(models) != 1 or not found:
                 check('product_scope', 'review', 'Expected product/model identity is not unambiguously established for this requirement.', found, doc.id)
             else:
                 good = all(normalize(f['raw_value']) in models for f in found)
@@ -409,6 +649,12 @@ def verify(db, wid, rid, payload, *, commit=True, reuse=None, affected_fields=No
         for identity, facts in grouped.items():
             if len({f['normalized']['document_version_id'] for f in facts}) > 1 and len({f['normalized']['value'] for f in facts}) > 1:
                 check(field, 'conflict', f'Datasheets disagree for model {identity}; configuration or revision scope needs human resolution.', facts)
+    for dependency in plan.get('dependencies', []):
+        child = db.get(Assessment, dependency['assessment_id']) if dependency['assessment_id'] else None
+        view = assessment_view(db, child) if child else None
+        outcome = 'pass' if view and not view['stale'] and view['status'] == 'supported' and view['review_state'] not in {'rejected','reopened'} else 'review'
+        checks.append({'method': 'component_dependency', 'field': 'component', 'outcome': outcome,
+            **dependency, 'sources': [], 'rationale': 'Component clause on page ' + str(dependency['page']) + ': ' + dependency['quote'] + ('. Its current evidence assessment is supported; this does not approve the combined clause.' if outcome == 'pass' else '. Check or reassess this component; its current result cannot support the combined clause.')})
     outcomes = {c.get('outcome') for c in checks}
     status = next((s for outcome, s in [('conflict','conflicting'), ('outdated','outdated'), ('missing','missing'), ('review','inconclusive')] if outcome in outcomes), 'supported')
     checks[0]['display_status'] = status
@@ -424,7 +670,7 @@ def verify(db, wid, rid, payload, *, commit=True, reuse=None, affected_fields=No
     record_dependencies(db, assessment)
     if status != 'supported':
         db.add(CorrectiveTask(workspace_id=wid, assessment_id=assessment.id,
-            title=f'Resolve evidence finding: {LABELS[status]}', explanation='\n'.join(c['rationale'] for c in checks if c.get('outcome') not in {None,'pass'}) + '\nObtain evidence addressing these discrepancies, upload the replacement document, and rerun the requirement checks. Then request human review.'))
+            title=f'Resolve evidence finding: {LABELS[status]}', explanation='\n'.join(c['rationale'] for c in checks if c.get('outcome') not in {None,'pass','not_applicable'}) + '\nObtain evidence addressing these discrepancies, upload the replacement document, and rerun the requirement checks. Then request human review.'))
     if commit:
         db.commit()
     else:
@@ -453,14 +699,19 @@ def assessment_view(db, row):
     temporal = not verification_context.get('criteria') or any(
         c.get('field') in {'validity','valid_until','valid_from'} for c in row.checks)
     invalidated = db.scalar(select(ReassessmentImpact.id).where(ReassessmentImpact.old_assessment_id == row.id).limit(1)) is not None
-    stale = evidence_changed or invalidated or (temporal and evaluated_on is not None and evaluated_on != datetime.now(timezone.utc).date().isoformat())
+    corrected = any(r.condition.get('reconciliation_version') and not r.condition.get('canonicalized_from')
+        for r in db.scalars(select(RequirementVersion).where(RequirementVersion.workspace_id == row.workspace_id,
+            RequirementVersion.supersedes_id == row.requirement_version_id)))
+    dependency_changed = component_dependencies.changed(db, row)
+    stale = dependency_changed or evidence_changed or invalidated or corrected or (temporal and evaluated_on is not None and evaluated_on != datetime.now(timezone.utc).date().isoformat())
     tasks = db.scalars(select(CorrectiveTask).where(CorrectiveTask.assessment_id == row.id)).all()
     return {'id': row.id, 'requirement_id': row.requirement_version_id,
         'status': context.get('display_status', row.status),
         'label': LABELS[context.get('display_status', row.status)], 'explanation': row.explanation,
         'checks': row.checks, 'created_at': row.created_at.isoformat(),
         'workspace_revision': row.workspace_revision, 'stale': stale, 'review_state': reviews[-1].action if reviews else 'awaiting_review',
-        'officially_verified': False, 'requires_reassessment': invalidated,
+        'officially_verified': False, 'requires_reassessment': invalidated or corrected or dependency_changed,
+        'dependency_changed': dependency_changed,
         'reviews': [{'id': r.id, 'action': r.action, 'reviewer': r.reviewer, 'comment': r.comment, 'created_at': r.created_at.isoformat()} for r in reviews],
         'tasks': [{'id': t.id, 'title': t.title, 'explanation': t.explanation, 'status': t.status} for t in tasks]}
 

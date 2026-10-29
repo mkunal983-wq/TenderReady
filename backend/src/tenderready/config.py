@@ -18,14 +18,19 @@ class Settings(BaseSettings):
     nebius_base_url: str = "https://api.tokenfactory.nebius.com/v1"
     nebius_model: str = "nvidia/Nemotron-3-Ultra-550b-a55b"
     nebius_json_mode: bool = False
+    # None keeps the hosted model's default. Enable explicitly only after checking
+    # the selected model's documented chat-template control.
+    nebius_enable_thinking: bool | None = None
+    nebius_extraction_format: Literal['quoted', 'line_refs'] = 'quoted'
     nebius_timeout_seconds: float = Field(default=60, gt=0, le=180)
-    nebius_max_output_tokens: int = Field(default=8192, ge=128, le=16384)
+    nebius_max_output_tokens: int = Field(default=8192, ge=128, le=32768)
     storage_dir: Path = PROJECT_ROOT / "data" / "documents"
     upload_max_bytes: int = Field(default=10 * 1024 * 1024, ge=1024, le=25 * 1024 * 1024)
     pdf_max_pages: int = Field(default=40, ge=1, le=100)
     pdf_max_text_chars: int = Field(default=160000, ge=1000, le=500000)
     pdf_parse_timeout_seconds: int = Field(default=20, ge=1, le=60)
     analysis_timeout_seconds: int = Field(default=600, ge=1, le=1800)
+    extraction_batch_max_chars: int = Field(default=1500, ge=500, le=4000)
     app_api_token: SecretStr = SecretStr("")
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 

@@ -72,3 +72,56 @@ main.tr-app { overflow-x:clip; }
   .tr-features>div { font-size:9px; gap:5px; }
   .tr-feature-icon { flex-shrink:0; width:26px; }
 }
+
+/* Centered evidence-first landing page. */
+.tr-centered::before { background:radial-gradient(ellipse at 48% 0,#bde5d9bb,transparent 40%),radial-gradient(ellipse at 6% 35%,#daedf0,transparent 50%),#f5f9fa; inset:0 -40px; }
+.tr-centered .tr-nav { border-bottom:1px solid #dbe8e7; padding:18px 0; }
+.tr-centered .tr-nav nav { margin:auto; }
+.tr-centered .tr-hero { display:block; min-height:0; padding:56px 0 38px; text-align:center; }
+.tr-centered .tr-hero-copy { max-width:960px; margin:auto; width:auto; }
+.tr-centered .tr-hero h1 { font-size:clamp(36px,4.3vw,60px); line-height:1.12; letter-spacing:-2.6px; margin:26px auto 22px; max-width:950px; }
+.tr-centered .tr-hero h1 span { color:#007d70; }
+.tr-centered .tr-hero-copy>p { max-width:720px; margin:0 auto; font-size:18px; line-height:1.7; color:#516477; }
+.tr-centered .tr-actions { justify-content:center; margin:28px 0; }
+.tr-centered .tr-button { padding:12px 22px; border-radius:9px; }
+.tr-benefit-pills { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:26px; }
+.tr-benefit-pills>span { display:flex; align-items:center; gap:8px; border:1px solid #e0e8ef; padding:7px 13px; border-radius:24px; background:#ffffffd9; font-size:12px; color:#40536b; }
+.tr-benefit-pills svg { color:#008673; }
+.tr-checker { background:#fff; border:1px solid #dfe8ee; border-radius:22px; box-shadow:0 20px 60px #145e5110; overflow:hidden; scroll-margin-top:24px; }
+.tr-checker>header { padding:28px; }
+.tr-demo-caption { display:flex; gap:12px; align-items:center; flex-wrap:wrap; color:#63758b; font-size:12px; }
+.tr-demo-caption .tr-eyebrow { padding:4px 8px; border-radius:5px; font-size:10px; }
+.tr-checker h2 { font-size:23px; letter-spacing:-.8px; margin:12px 0 5px; }
+.tr-checker header>p { margin:0; color:#60758d; font-size:14px; }
+.tr-example-tabs { display:flex; flex-wrap:wrap; gap:5px; padding:5px; border:1px solid #dde7ed; background:#f0f4f8; border-radius:12px; width:fit-content; margin-top:24px; }
+.tr-example-tabs button { display:flex; align-items:center; gap:9px; border:0; background:transparent; color:#4b6075; padding:11px 15px; border-radius:9px; font-size:13px; cursor:pointer; }
+.tr-example-tabs button[aria-pressed="true"] { background:#fff; color:#007d70; box-shadow:0 2px 8px #2b536014; }
+.tr-example-tabs small { background:#e2f6ee; color:#008475; font-size:10px; padding:3px 7px; border-radius:12px; }
+.tr-example-body { padding:28px; background:#f8fafc; border-top:1px solid #e7edf2; }
+.tr-comparison { display:grid; grid-template-columns:minmax(0,1fr) 40px minmax(0,1fr); gap:18px; align-items:center; }
+.tr-comparison article { background:#fff; border:1px solid #cfdae7; border-radius:18px; padding:26px; height:100%; }
+.tr-card-label { display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:10px; letter-spacing:1px; font-weight:700; color:#647891; }
+.tr-card-label span { letter-spacing:0; font-weight:500; }
+.tr-comparison h3 { font-size:22px; margin:18px 0; letter-spacing:-.7px; }
+.tr-comparison blockquote { margin:0; padding:18px; border-left:3px solid #008779; border-radius:8px; background:#f5f8fa; color:#4c6175; font-size:15px; line-height:1.7; }
+.tr-comparison .tr-evidence-match { border-color:#abe8cb; background:#fbfffd; }
+.tr-comparison .tr-evidence-warning { border-color:#ebc79e; background:#fffdf8; }
+.tr-match-marker { display:flex; flex-direction:column; align-items:center; gap:9px; color:#008970; }
+.tr-match-marker small { font-size:9px; font-weight:700; }
+.tr-example-result { display:flex; align-items:flex-start; gap:16px; padding:22px; margin-top:24px; background:#edfdf3; border:1px solid #b6edce; border-radius:15px; color:#187641; }
+.tr-example-result>svg { flex-shrink:0; margin-top:3px; }
+.tr-example-result h3 { margin:0 0 7px; font-size:19px; }
+.tr-example-result p { margin:0; color:#486359; line-height:1.65; font-size:14px; }
+.tr-example-result.tr-is-warning { background:#fff8ed; border-color:#f1d4a7; color:#98651d; }
+.tr-sample-note { font-size:11px; color:#687c8c; line-height:1.7; margin:16px 0 0; }
+.tr-faq { max-width:850px; margin:65px auto; }
+.tr-faq h2 { text-align:center; font-size:27px; margin-bottom:24px; }
+.tr-faq details { border:1px solid #dde8e6; background:#ffffffb8; border-radius:12px; padding:18px 22px; margin:10px 0; color:#405b69; }
+.tr-faq summary { cursor:pointer; font-weight:600; }
+.tr-faq p { font-size:14px; line-height:1.7; }
+.tr-centered :is(a,button,summary):focus-visible { outline:3px solid #3ca28f; outline-offset:4px; }
+@media(prefers-reduced-motion:no-preference) { .tr-example-body { animation:tr-example-in .25s ease-out; } @keyframes tr-example-in { from { opacity:.3; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } } }
+@media(max-width:800px) { .tr-centered .tr-nav { flex-wrap:wrap; gap:16px; } .tr-centered .tr-nav nav { order:3; width:100%; gap:18px; flex-wrap:wrap; } .tr-centered .tr-hero { padding:38px 0 28px; } .tr-centered .tr-hero h1 { letter-spacing:-1.5px; } .tr-comparison { grid-template-columns:1fr; } .tr-match-marker { flex-direction:row; justify-content:center; } .tr-checker>header,.tr-example-body { padding:18px; } .tr-comparison article { padding:20px; } .tr-example-tabs { width:100%; } .tr-example-tabs button { flex:1 1 180px; } .tr-centered .tr-hero-copy>p { font-size:16px; } }
+/* Override the app's generic flex header inside the comparison demo. */
+.tr-checker>header { display:block; }
+@media(max-width:800px) { .tr-centered .tr-nav nav { display:flex; justify-content:flex-start; font-size:12px; gap:12px 18px; } }

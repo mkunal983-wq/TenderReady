@@ -53,10 +53,8 @@ def latest_snapshot(db, wid):
 
 
 def candidates(db, wid, did):
-    return [r for r in db.scalars(select(RequirementVersion).join(SourceSpan,
-        RequirementVersion.source_span_id == SourceSpan.id).where(RequirementVersion.workspace_id == wid,
-        SourceSpan.document_version_id == did).order_by(RequirementVersion.created_at, RequirementVersion.id))
-        if not r.condition.get('canonicalized_from')]
+    from .requirement_selection import current_rows
+    return [r for r, _ in current_rows(db, wid, did)]
 
 
 def members(db, snapshot):
@@ -96,7 +94,14 @@ def safe_grammar(req):
          and normalize(line) in covered) for line in lines)
 
 
+def product_scope(req):
+    return tuple(normalize(c.get('text', '')) for c in req.condition.get('source_context', [])
+                 if c.get('kind') == 'product_scope')
+
+
 def equivalent(old, new):
+    if product_scope(old) != product_scope(new):
+        return False
     old_sentence, new_sentence = threshold_sentence(old), threshold_sentence(new)
     same_sentence = old_sentence and new_sentence and old_sentence['key'] == new_sentence['key']
     if old.obligation != new.obligation or (old.category != new.category and not same_sentence):
@@ -108,12 +113,16 @@ def equivalent(old, new):
 
 def source_view(db, req, span_id=None, excerpt=None):
     if req is None: return None
+    from .reconciliation import grounded_conditions
     span = db.get(SourceSpan, span_id or req.source_span_id)
     document = db.get(DocumentVersion, span.document_version_id)
     return {'requirement_id': req.id, 'stable_id': req.requirement_key, 'clause_id': clause_id_text(excerpt or req.statement),
         'version': req.version, 'text': excerpt or req.statement, 'attributes': attributes(req),
         'document_id': document.id, 'filename': document.filename, 'page': span.page,
-        'source_url': f'/workspaces/{req.workspace_id}/documents/{document.id}/file#page={span.page}'}
+        'source_url': f'/workspaces/{req.workspace_id}/documents/{document.id}/file#page={span.page}',
+        'source_context': req.condition.get('source_context', []),
+        'quantity_conditions': grounded_conditions(req, span, 'quantity_conditions'),
+        'temporal_conditions': grounded_conditions(req, span, 'temporal_conditions')}
 
 
 def extract_labelled(db, wid, did):
@@ -215,10 +224,10 @@ def compare(db, wid, did, payload):
         methods[mapping.candidate_id] = 'reviewer_mapping'
     for nid,nreq in new.items():
         if nid in matched: continue
-        choices = [oid for oid,oreq in old.items() if oid not in used and clause_id(nreq) and clause_id(nreq) == clause_id_text(refs[oid].source_excerpt)]
+        choices = [oid for oid,oreq in old.items() if oid not in used and clause_id(nreq) and clause_id(nreq) == clause_id_text(refs[oid].source_excerpt) and product_scope(nreq) == product_scope(oreq)]
         method = 'explicit_clause_id'
         if not choices:
-            choices = [oid for oid,oreq in old.items() if oid not in used and not (clause_id(nreq) and clause_id_text(refs[oid].source_excerpt)) and normalize(nreq.statement) == normalize(oreq.statement)]
+            choices = [oid for oid,oreq in old.items() if oid not in used and not (clause_id(nreq) and clause_id_text(refs[oid].source_excerpt)) and normalize(nreq.statement) == normalize(oreq.statement) and product_scope(nreq) == product_scope(oreq)]
             method = 'exact_normalized_text'
         if len(choices)>1: raise HTTPException(422, 'Ambiguous match; supply an explicit one-to-one reviewer mapping.')
         if choices:

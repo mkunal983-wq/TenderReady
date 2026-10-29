@@ -21,7 +21,8 @@ from .documents import (upload_document, document_response, require_document, st
 from .nebius import NemotronClient
 from .models import SourceSpan, RequirementVersion, Assessment
 from .verification import (EvidenceType, VerifyInput, ReviewInput, ManualRequirement,
-    verify, review, assessment_view, require_requirement, propose, list_evidence)
+    verify, review, assessment_view, require_requirement, verification_preview, list_evidence)
+from .batch_verification import BulkVerifyInput, verify_all
 
 
 def create_app(settings: Settings | None = None, engine=None):
@@ -191,6 +192,22 @@ def create_app(settings: Settings | None = None, engine=None):
         require_document(db, workspace_id, document_id)
         return requirements_response(db, str(workspace_id), str(document_id))
 
+    @app.post("/workspaces/{workspace_id}/documents/{document_id}/reconcile", dependencies=[Depends(authorize)])
+    def reconcile_extraction(workspace_id: UUID, document_id: UUID, db=Depends(session)):
+        from .reconciliation import reconcile_document
+        document = require_document(db, workspace_id, document_id)
+        reconcile_document(db, str(workspace_id), str(document_id))
+        return document_response(db, document)
+
+    @app.get("/workspaces/{workspace_id}/documents/{document_id}/reconciliations", dependencies=[Depends(authorize)])
+    def reconciliation_history(workspace_id: UUID, document_id: UUID, db=Depends(session)):
+        from .models import ExtractionReconciliation
+        from .reconciliation import audit_view
+        require_document(db, workspace_id, document_id)
+        return [audit_view(r) for r in db.scalars(select(ExtractionReconciliation).where(
+            ExtractionReconciliation.workspace_id == str(workspace_id),
+            ExtractionReconciliation.document_version_id == str(document_id)).order_by(ExtractionReconciliation.revision))]
+
     @app.post("/workspaces/{workspace_id}/documents/{document_id}/analyze", status_code=202, dependencies=[Depends(authorize)])
     def analyze(workspace_id: UUID, document_id: UUID, background: BackgroundTasks, db=Depends(session)):
         document = require_document(db, workspace_id, document_id)
@@ -256,11 +273,17 @@ def create_app(settings: Settings | None = None, engine=None):
         req = require_requirement(db, str(workspace_id), str(requirement_id))
         assessments = db.scalars(select(Assessment).where(Assessment.workspace_id == str(workspace_id),
             Assessment.requirement_version_id == req.id).order_by(Assessment.created_at.desc(), Assessment.id.desc())).all()
-        return {"suggested_criteria": propose(req), "assessments": [assessment_view(db, a) for a in assessments]}
+        plan = verification_preview(db, req)
+        return {"suggested_criteria": plan['criteria'], "check_plan": plan,
+                "assessments": [assessment_view(db, a) for a in assessments]}
 
     @app.post("/workspaces/{workspace_id}/requirements/{requirement_id}/verify", status_code=201, dependencies=[Depends(authorize)])
     def verify_requirement(workspace_id: UUID, requirement_id: UUID, payload: VerifyInput, db=Depends(session)):
         return verify(db, str(workspace_id), str(requirement_id), payload)
+
+    @app.post("/workspaces/{workspace_id}/verify-all", dependencies=[Depends(authorize)])
+    def verify_workspace(workspace_id: UUID, payload: BulkVerifyInput | None = None, db=Depends(session)):
+        return verify_all(db, str(workspace_id))
 
     @app.post("/workspaces/{workspace_id}/assessments/{assessment_id}/reviews", status_code=201, dependencies=[Depends(authorize)])
     def review_assessment(workspace_id: UUID, assessment_id: UUID, payload: ReviewInput, db=Depends(session)):
