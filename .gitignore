@@ -24,3 +24,12 @@ __pycache__/
 *-report.json
 *.csv
 *.log
+
+# Deployment secrets and backups
+server.env
+backups/
+private-deploy/
+*.tgz
+*.tar.gz
+*access-token*
+known_hosts

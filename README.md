@@ -1,6 +1,6 @@
 # TenderReady
 
-[MIT License](LICENSE) · [Setup and running](#run-locally) · [Nebius and NVIDIA feedback](docs/feedback.md)
+[Live website](https://tenderready.213.239.171.132.sslip.io/) · [MIT License](LICENSE) · [Setup and running](#run-locally) · [Nebius and NVIDIA feedback](docs/feedback.md)
 
 **Amendment-aware procurement evidence review.**
 
@@ -8,7 +8,7 @@ TenderReady connects tender requirements to supplier evidence, identifies which 
 
 Built for small IT hardware suppliers preparing school and university procurement bids. Hackathon track: **Best Apps and Agents**.
 
-> **Current status:** the local supplier workflow and **real NVIDIA Nemotron inference through Nebius Token Factory were verified on 29 October 2026**. A synthetic tender requiring 32 GB RAM was extracted with an exact page-2 citation, then deterministic verification rejected 16 GB supplier evidence. Two successful provider calls and their usage metadata were persisted. The offline sample remains separately labelled and never pretends to be an AI run. See [live verification](docs/live-verification.md).
+> **Live on Nebius AI Cloud:** frontend, FastAPI backend and private persistent storage are deployed behind HTTPS. A real Nemotron Ultra call through Token Factory extracted a 32 GB RAM requirement from PDF page 1; deterministic verification detected 16 GB evidence. The deployment uses a shared app access key for trusted reviewers (not the Nebius API key). Ask the project owner for access; keys are never published in this repository. See [deployment verification](deploy/DEPLOYMENT_REPORT.md) and [deployment setup](deploy/README.md).
 
 ## What works
 
@@ -75,7 +75,7 @@ npm run dev
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite proxies `/api` to the local backend. API documentation: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 
-`npm run build` creates the frontend production bundle; it does not deploy or start the backend. A hosted deployment still requires an authenticated API and private persistent storage.
+`npm run build` creates the frontend production bundle; it does not deploy or start the backend. The live Nebius deployment uses an authenticated API and private persistent storage; see [production setup](deploy/README.md).
 
 ## Try the complete sample without an API key
 
@@ -139,7 +139,7 @@ References: [Token Factory API](https://docs.tokenfactory.nebius.com/api-referen
 
 Token Factory hosted the Nemotron inference used by our FastAPI backend, so we did not need to provision GPUs, download model weights or operate a model-serving stack. Its OpenAI-compatible API let us keep the provider integration in one server-side client and use the same application workflow for account-available Super and Ultra models. This reduced the infrastructure work needed to build and test requirement extraction, leaving development focused on citations, deterministic evidence checks and amendment history. This is a qualitative development benefit; we have not measured time savings, comparative model speed or cost savings.
 
-**Services used:** Nebius Token Factory for NVIDIA Nemotron inference. The frontend, application backend, database and private document storage run locally in the verified setup. We have not used Nebius AI Cloud GPU instances, Serverless Endpoints or Serverless Jobs in this MVP, and do not claim deployment or hands-on feedback for those services. No other NVIDIA runtime or agent framework is integrated.
+**Services used:** Nebius Token Factory for NVIDIA Nemotron inference and Nebius AI Cloud for the public application VM (2 vCPUs, 8 GiB RAM, Ubuntu 24.04). Frontend, backend, SQLite and private PDFs run on that VM. GPU instances, Serverless Endpoints and Serverless Jobs are not used. No other NVIDIA runtime or agent framework is integrated.
 
 ### Feedback on Nebius and NVIDIA
 
@@ -189,7 +189,7 @@ npm run typecheck
 npm run build
 ```
 
-Latest local verification on 29 October 2026: **212 backend tests and 24 frontend tests passed**, lint/typechecking/build passed, and the latest amendment change required no schema migration. Provider transport mocks occur only in automated tests and are not live-inference evidence. The offline acceptance path uses actual PDF parsing, persistence, checks and exports. Existing upstream deprecation/Motion build warnings are non-blocking.
+Latest verification on 30 October 2026: **532 backend tests and 46 frontend tests passed**, plus lint, typechecking and production build. Real deployed inference and authenticated uploads/exports were tested separately from test mocks. Migrations 0010 and 0011 preserve extraction checkpoints and reconciliation history. Existing deprecation warnings are non-blocking.
 
 ## Configuration and boundaries
 

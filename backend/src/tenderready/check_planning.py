@@ -332,7 +332,8 @@ def build_check_plan(req, source_span, *, supported_fields=None):
                 unhandled(segment, 'This type of number does not have an automatic evidence check yet.')
                 continue
             plan['criteria'].append(_criterion(field, next(iter(operators)), groups['value'], segment))
-            if groups.get('model'):
+            # Generic tender adjectives are not product model identifiers.
+            if groups.get('model') and _flat(groups['model']) not in {'offered', 'proposed', 'supplied', 'required'}:
                 if 'model' in supported:
                     plan['criteria'].append(_criterion('model', 'eq', groups['model'], segment))
                 else:

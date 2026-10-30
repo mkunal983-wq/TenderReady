@@ -9,10 +9,11 @@ This feedback is based on TenderReady's implementation and real local acceptance
 | Nebius Token Factory | Hosted inference through its OpenAI-compatible API; account model discovery; real requirement-extraction calls. |
 | NVIDIA Nemotron 3 Super | Earlier live extraction using `nvidia/nemotron-3-super-120b-a12b`. |
 | NVIDIA Nemotron 3 Ultra | Current configured model, `nvidia/Nemotron-3-Ultra-550b-a55b`, confirmed in our account catalog and exercised in live extraction. |
-| Nebius AI Cloud, Serverless Endpoints and Serverless Jobs | Not used in this MVP. We cannot offer hands-on feedback on these services. |
+| Nebius AI Cloud | CPU VM hosting the HTTPS frontend, backend and private document/database storage; deployed and tested on 30 October 2026. |
+| Serverless Endpoints and Serverless Jobs | Not used; no hands-on evaluation claimed. |
 | Other NVIDIA tools or frameworks | Not integrated or evaluated in this MVP. |
 
-The frontend, FastAPI application, database and document storage ran locally. Token Factory provided the model inference; this is not a claim that the application itself is deployed on Nebius AI Cloud.
+Initial tests ran locally. On 30 October 2026 the frontend, FastAPI application, database and private document storage were deployed to Nebius AI Cloud, while Token Factory continued to provide hosted inference. Cloud billing activation was separate from Token Factory setup; the CPU VM allowed deployment without self-hosting model weights.
 
 ## What worked well
 
@@ -37,4 +38,4 @@ Our automated tests also exercise malformed responses, timeouts, rate limits and
 
 ## Evaluation limits
 
-These are observations from a local MVP and synthetic acceptance tests. We make no measured claims about throughput, latency improvements, cost savings, general extraction accuracy or Ultra being superior to Super. We did not benchmark self-hosting or evaluate AI Cloud/Serverless operations. No model output establishes document authenticity, legal eligibility or a contract award; final findings remain reviewable by a person.
+These are observations from a local MVP and synthetic acceptance tests. We make no measured claims about throughput, latency improvements, cost savings, general extraction accuracy or Ultra being superior to Super. We did not benchmark self-hosted inference or evaluate Serverless services; AI Cloud evaluation is limited to this single-VM deployment. No model output establishes document authenticity, legal eligibility or a contract award; final findings remain reviewable by a person.

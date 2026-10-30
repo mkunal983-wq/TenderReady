@@ -370,3 +370,13 @@ def test_cpu_generation_condition_formats_are_source_reconciled(value,unit,opera
  assert represented_condition(criterion,condition) is matched
  condition['quote']='An unrelated processor clause'
  assert not represented_condition(criterion,condition)
+
+
+@pytest.mark.parametrize('adjective', ['offered', 'proposed', 'supplied', 'required'])
+def test_generic_product_adjective_is_not_a_model(adjective):
+    text = f'The {adjective} laptop must have at least 32 GB RAM.'
+    req, span = inputs(text, numeric(text, '32'))
+    plan = build_check_plan(req, span)
+    assert [c['field'] for c in plan['criteria']] == ['ram_gb']
+    assert plan['criteria'][0]['expected'] == '32'
+    assert plan['coverage'] == 'complete'

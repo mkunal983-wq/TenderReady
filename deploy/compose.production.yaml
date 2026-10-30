@@ -1,0 +1,27 @@
+services:
+  app:
+    build:
+      context: ..
+    restart: unless-stopped
+    env_file: /opt/tenderready/server.env
+    volumes:
+      - /opt/tenderready/data:/app/data
+    expose:
+      - '8000'
+    security_opt:
+      - no-new-privileges:true
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+volumes:
+  caddy_data:
+  caddy_config:
